@@ -43,4 +43,5 @@ public final class ServerConfigurationValues {
     public static final String TASK_SQL_NB_LOGGED_ROW_SPRING_VALUE = "${" + TASK_SQL_NB_LOGGED_ROW + ":30}";
     public static final String TASK_SQL_MINIMUM_MEMORY_PERCENTAGE_REQUIRED = "chutney.actions.sql.minimum-memory-percentage-required";
     public static final String TASK_SQL_MINIMUM_MEMORY_PERCENTAGE_REQUIRED_SPRING_VALUE = "${" + TASK_SQL_MINIMUM_MEMORY_PERCENTAGE_REQUIRED + ":0}";
+    public static final String TARGET_CONNECTION_CHECK_TIMEOUT_SPRING_VALUE = "${chutney.targets.connection-check.timeout:5000}";
 }

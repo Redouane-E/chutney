@@ -48,16 +48,54 @@
         data-bs-target=".collapse">
       </i>
     </button>
+    <button type="button" class="btn btn-sm btn-outline-primary ms-auto align-self-center text-nowrap"
+            (click)="testAll()" [disabled]="isTestingAll()"
+            title="{{ 'admin.targets.connection.testAllTooltip' | translate }}">
+      <i class="bi bi-arrow-clockwise me-1"></i>{{ 'admin.targets.connection.testAll' | translate }}
+    </button>
   </div>
   <table class="table table-striped table-hover">
+    <thead>
+      <tr class="list-header">
+        <th scope="col" class="status-col">
+          <span class="d-inline-flex align-items-center gap-1">
+            {{ 'admin.targets.connection.status.label' | translate }}
+            <i class="bi bi-question-circle status-legend"
+               [tooltip]="'admin.targets.connection.status.legend' | translate" placement="right"
+               [attr.aria-label]="'admin.targets.connection.status.legend' | translate"></i>
+          </span>
+        </th>
+        <th scope="col" class="w20">{{ 'admin.targets.list.name' | translate }}</th>
+        <th scope="col">{{ 'admin.targets.list.url' | translate }}</th>
+        <th scope="col" class="text-end">{{ 'admin.targets.list.actions' | translate }}</th>
+      </tr>
+    </thead>
     <tbody>
       @for (targetName of targetsNames; track targetName) {
         <tr>
+          <td class="align-middle status-col">
+            @if (isTesting(targetName, activeEnvTab(targetName))) {
+              <span class="d-inline-flex align-items-center gap-2 text-secondary">
+                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                <span class="status-label">{{ 'admin.targets.connection.testing' | translate }}</span>
+              </span>
+            } @else {
+              <span class="d-inline-flex align-items-center gap-2"
+                    [tooltip]="statusTooltip(targetName, activeEnvTab(targetName))" placement="right"
+                    [attr.aria-label]="statusTooltip(targetName, activeEnvTab(targetName))">
+                <span class="status-dot" [ngClass]="statusDotClass(targetName, activeEnvTab(targetName))" aria-hidden="true"></span>
+                <span class="status-label" [class.has-detail]="hasDetail(targetName, activeEnvTab(targetName))">
+                  {{ statusLabel(targetName, activeEnvTab(targetName)) | translate }}
+                </span>
+              </span>
+            }
+          </td>
           <td class="align-middle w20">
             <ngb-highlight [result]="targetName" [term]="targetFilter"></ngb-highlight>
           </td>
           <td class="small">
-            <ul ngbNav #nav="ngbNav" class="nav-pills" [activeId]="activeEnvironmentTab(targetName)"
+            <ul ngbNav #nav="ngbNav" class="nav-pills" [activeId]="activeEnvTab(targetName)"
+              (navChange)="onEnvTabChange(targetName, $event)"
               [destroyOnHide]="false">
               @for (env of environments; track env.name) {
                 <li class="me-1" [ngbNavItem]="env.name"
@@ -106,11 +144,19 @@
               <div [ngbNavOutlet]="nav" class="mt-2"></div>
             </td>
             <td class="align-middle w1">
-              <button class="btn btn-sm btn-outline-primary" [routerLink]="[targetName]"
-                    [disabled]="!isAuthorizedToWriteTargets"
-                    title="{{ 'global.actions.edit' | translate}}">
-                <i class="bi bi-pencil-fill"></i>
-              </button>
+              <div class="d-flex flex-row align-items-center justify-content-end gap-2 flex-nowrap">
+                <button type="button" class="btn btn-sm btn-outline-primary text-nowrap"
+                        (click)="testConnection(targetName, activeEnvTab(targetName))"
+                        [disabled]="isTesting(targetName, activeEnvTab(targetName))"
+                        title="{{ 'admin.targets.connection.testTooltip' | translate }}">
+                  <i class="bi bi-arrow-clockwise me-1"></i>{{ 'admin.targets.connection.testShort' | translate }}
+                </button>
+                <button class="btn btn-sm btn-outline-primary" [routerLink]="[targetName]"
+                      [disabled]="!isAuthorizedToWriteTargets"
+                      title="{{ 'global.actions.edit' | translate}}">
+                  <i class="bi bi-pencil-fill"></i>
+                </button>
+              </div>
             </td>
           </tr>
         }

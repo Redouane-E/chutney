@@ -38,6 +38,7 @@ path = ["**/*.img",
     "**/*.strategies",
     "**/*.actions",
     "**/*.functions",
+    "**/*.checkers",
     "**/*.parsers",
 ]
 SPDX-FileCopyrightText = "2017-2026 Enedis"

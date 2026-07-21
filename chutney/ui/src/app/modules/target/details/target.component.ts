@@ -7,10 +7,17 @@
 
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Target } from '@model';
+import { Target, TargetConnectionCheckResult } from '@model';
 import { ValidationService } from '../../../molecules/validation/validation.service';
 import { EnvironmentService } from '@core/services';
 import { Observable, Subject, takeUntil, zip } from 'rxjs';
+
+interface ConnectionCheck {
+    testing: boolean;
+    result: TargetConnectionCheckResult | null;
+    /** Values that were actually probed — the result is dropped once the form no longer matches. */
+    snapshot?: string;
+}
 
 @Component({
     selector: 'chutney-target',
@@ -25,6 +32,8 @@ export class TargetComponent implements OnInit, OnDestroy {
     name: string = '';
     oldName: string = '';
     errorMessage: string;
+
+    private readonly connectionChecks = new Map<string, ConnectionCheck>();
 
     private unsubscribeSub$: Subject<void> = new Subject();
 
@@ -94,6 +103,46 @@ export class TargetComponent implements OnInit, OnDestroy {
 
     existOn(environment: string): boolean {
         return this.existingEnvs.includes(environment);
+    }
+
+    canTest(target: Target): boolean {
+        return !!target.url && this.validationService.isValidUrl(target.url);
+    }
+
+    testConnection(target: Target) {
+        const env = target.environment;
+        const snapshot = this.snapshotOf(target);
+        this.connectionChecks.set(env, { testing: true, result: null, snapshot });
+        this.environmentService.checkTargetValues({ ...target, name: this.name })
+            .pipe(takeUntil(this.unsubscribeSub$))
+            .subscribe({
+                next: result => this.connectionChecks.set(env, { testing: false, result, snapshot }),
+                error: error => this.connectionChecks.set(env, {
+                    testing: false,
+                    result: new TargetConnectionCheckResult('DOWN', 'UNREACHABLE', error?.error ?? error?.message ?? '', 0),
+                    snapshot
+                })
+            });
+    }
+
+    isTesting(environment: string): boolean {
+        return this.connectionChecks.get(environment)?.testing ?? false;
+    }
+
+    /**
+     * The result of the last check, but only while the form still holds the values that were probed —
+     * editing the url or a property drops it rather than vouching for something that was never tested.
+     */
+    resultFor(target: Target): TargetConnectionCheckResult | null {
+        const check = this.connectionChecks.get(target.environment);
+        if (!check?.result) {
+            return null;
+        }
+        return check.snapshot === this.snapshotOf(target) ? check.result : null;
+    }
+
+    private snapshotOf(target: Target): string {
+        return JSON.stringify({ name: this.name, url: target.url, properties: target.properties });
     }
 
     canSave() {

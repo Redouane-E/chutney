@@ -264,6 +264,8 @@ class SecuredControllerSpringBootIntegrationTest {
             {POST, TargetController.TARGET_BASE_URI, TARGET_WRITE.name(), "{\"name\":\"targetName\",\"url\":\"http://localhost\", \"environment\":\"DEFAULT\"}", OK},
             {GET, EnvironmentController.BASE_URL + "/DEFAULT/targets/targetName", TARGET_READ.name(), null, OK},
             {PUT, TargetController.TARGET_BASE_URI + "/targetName", TARGET_WRITE.name(), "{\"name\":\"targetName\",\"url\":\"https://localhost\", \"environment\":\"DEFAULT\"}", OK},
+            {POST, EnvironmentController.BASE_URL + "/DEFAULT/targets/targetName/connection-check", TARGET_READ.name(), null, OK},
+            {POST, "/api/v2/targets/connection-check", TARGET_READ.name(), "{\"name\":\"targetName\",\"url\":\"https://localhost\",\"environment\":\"DEFAULT\"}", OK},
             {DELETE, EnvironmentController.BASE_URL + "/DEFAULT/targets/targetName", TARGET_WRITE.name(), null, OK},
             {DELETE, TargetController.TARGET_BASE_URI + "/targetName", TARGET_WRITE.name(), null, OK},
 

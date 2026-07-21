@@ -1,0 +1,79 @@
+/*
+ * SPDX-FileCopyrightText: 2017-2026 Enedis
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
+
+package fr.enedis.chutney.action.ssh.check;
+
+import static fr.enedis.chutney.action.ssh.fakes.FakeServerSsh.buildLocalSshServer;
+import static fr.enedis.chutney.action.ssh.fakes.FakeTargetInfo.buildTargetWithPassword;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
+
+import fr.enedis.chutney.action.spi.injectable.Target;
+import fr.enedis.chutney.action.ssh.fakes.HardcodedTarget;
+import java.util.Map;
+import org.apache.sshd.server.SshServer;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+@DisplayName("SshConnectionChecker")
+class SshConnectionCheckerTest {
+
+    private static SshServer fakeSshServer;
+
+    private final SshConnectionChecker checker = new SshConnectionChecker();
+
+    @BeforeAll
+    static void start_ssh_server() throws Exception {
+        fakeSshServer = buildLocalSshServer();
+        fakeSshServer.start();
+    }
+
+    @AfterAll
+    static void stop_ssh_server() throws Exception {
+        fakeSshServer.stop();
+    }
+
+    @Nested
+    @DisplayName("canHandle")
+    class CanHandle {
+
+        @Test
+        void should_handle_ssh_scheme_only() {
+            assertThat(checker.canHandle(new HardcodedTarget(fakeSshServer, Map.of()))).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("check")
+    class Check {
+
+        @Test
+        void should_succeed_with_valid_credentials() {
+            // Given
+            Target target = buildTargetWithPassword(fakeSshServer);
+
+            // When
+            Throwable thrown = catchThrowable(() -> checker.check(target, 5000));
+
+            // Then
+            assertThat(thrown).isNull();
+        }
+
+        @Test
+        void should_fail_with_wrong_password() {
+            // Given
+            Target target = new HardcodedTarget(fakeSshServer, Map.of("user", "mockssh", "password", "wrong-password"));
+
+            // When / Then
+            assertThatThrownBy(() -> checker.check(target, 5000)).isInstanceOf(Exception.class);
+        }
+    }
+}

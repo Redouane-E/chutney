@@ -46,3 +46,19 @@ export class TargetFilter {
     ) {
     }
 }
+
+export type TargetConnectionStatus = 'UP' | 'DOWN' | 'UNKNOWN';
+
+export type TargetConnectionReason =
+    'OK' | 'UNKNOWN_HOST' | 'CONNECTION_REFUSED' | 'TIMEOUT' |
+    'AUTH_FAILED' | 'TLS_ERROR' | 'UNREACHABLE' | 'PROTOCOL_NOT_SUPPORTED';
+
+export class TargetConnectionCheckResult {
+    constructor(
+        public status: TargetConnectionStatus,
+        public reason: TargetConnectionReason,
+        public detail: string,
+        public durationMs: number,
+    ) {
+    }
+}

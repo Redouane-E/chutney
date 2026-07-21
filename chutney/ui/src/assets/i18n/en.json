@@ -376,6 +376,43 @@
                     "show": "Show properties"
                 }
             },
+            "list": {
+                "name": "Name",
+                "url": "URL",
+                "actions": "Actions"
+            },
+            "connection": {
+                "test": "Test connection",
+                "testShort": "Test",
+                "testTooltip": "Test the connection to this target",
+                "testAll": "Test all",
+                "testAllTooltip": "Test the connection to every target listed below",
+                "testing": "Testing…",
+                "beforeSave": "tests the values above — before you save",
+                "testedNow": "tested just now",
+                "checkedAgo": "checked {{age}} ago",
+                "showDetails": "Show details",
+                "hideDetails": "Hide details",
+                "ms": "ms",
+                "status": {
+                    "label": "Status",
+                    "legend": "Connection status — green: reachable, red: failed, grey: not testable, empty: not tested yet. Hover a dot for details.",
+                    "up": "Up",
+                    "down": "Down",
+                    "notTestable": "Not testable",
+                    "notTested": "Not tested"
+                },
+                "reason": {
+                    "OK": { "title": "Connected", "hint": "" },
+                    "UNKNOWN_HOST": { "title": "Host not found", "hint": "The hostname couldn’t be resolved. Check for a typo in the URL." },
+                    "CONNECTION_REFUSED": { "title": "Nothing is listening on that port", "hint": "The port is closed, or the service is down or firewalled. Check the host and port." },
+                    "TIMEOUT": { "title": "Connection timed out", "hint": "The host is unreachable from the Chutney server — likely a network or firewall block." },
+                    "AUTH_FAILED": { "title": "Authentication failed", "hint": "The server rejected the credentials. Check the username and password (or token)." },
+                    "TLS_ERROR": { "title": "TLS handshake failed", "hint": "The server certificate wasn’t trusted. Check the certificate or truststore configuration." },
+                    "UNREACHABLE": { "title": "Connection failed", "hint": "The target couldn’t be reached. Check the URL and that the service is running." },
+                    "PROTOCOL_NOT_SUPPORTED": { "title": "Not testable yet", "hint": "Chutney can’t probe this protocol from here — it’s still validated when the scenario runs." }
+                }
+            },
             "username.label": "Username",
             "password.label": "Password",
             "truststore.label": "Truststore",

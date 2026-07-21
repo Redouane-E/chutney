@@ -26,3 +26,70 @@
 :host ::ng-deep .ngb-highlight {
     background-color: violet !important;
 }
+
+/* Column headers name each column, so the status dots and actions explain themselves. */
+.list-header th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--bs-secondary-color, #6c757d);
+    white-space: nowrap;
+}
+
+.status-legend {
+    cursor: help;
+    opacity: 0.7;
+}
+
+/* Leading status column: dot + word, so the state is readable without hovering. */
+.status-col {
+    width: 9rem;
+    white-space: nowrap;
+}
+
+.status-label {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color, #6c757d);
+
+    /* Dotted underline: the conventional cue that hovering reveals more. */
+    &.has-detail {
+        border-bottom: 1px dotted var(--bs-secondary-color, #adb5bd);
+        cursor: help;
+    }
+}
+
+/* Connectivity status: a small dot only — details come on hover (tooltip). */
+.status-dot {
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    cursor: help;
+    flex: none;
+}
+
+.status-dot-up {
+    background-color: var(--bs-success);
+}
+
+.status-dot-down {
+    background-color: var(--bs-danger);
+}
+
+.status-dot-unknown {
+    background-color: var(--bs-secondary);
+}
+
+.status-dot-idle {
+    background-color: var(--bs-secondary-color, #adb5bd);
+    opacity: 0.3;
+}
+
+
+/* Keep the multi-line tooltip (title / hint / technical detail) readable. */
+:host ::ng-deep .tooltip-inner {
+    white-space: pre-line;
+    text-align: left;
+    max-width: 22rem;
+}

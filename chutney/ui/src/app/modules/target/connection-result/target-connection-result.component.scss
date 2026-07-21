@@ -1,0 +1,48 @@
+/*
+ * SPDX-FileCopyrightText: 2017-2026 Enedis
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
+
+.connection-result {
+    .min-w-0 {
+        min-width: 0;
+    }
+
+    /* Inherit the alert's foreground colour: the theme may fill alerts with a solid, saturated
+       background, where a hard-coded success/danger colour would be invisible or unreadable. */
+    i {
+        color: inherit;
+    }
+
+    .meta,
+    .hint {
+        color: inherit;
+        opacity: 0.85;
+    }
+
+    .details-toggle {
+        color: inherit;
+        text-decoration: underline;
+        opacity: 0.9;
+
+        &:hover,
+        &:focus {
+            color: inherit;
+            opacity: 1;
+        }
+    }
+
+    .detail {
+        font-family: var(--bs-font-monospace, monospace);
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: rgba(0, 0, 0, 0.12);
+        border-radius: 0.25rem;
+        padding: 0.4rem 0.55rem;
+        color: inherit;
+        max-height: 8rem;
+        overflow: auto;
+    }
+}

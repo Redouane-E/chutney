@@ -20,6 +20,7 @@ import { targetsRoutes } from '@modules/target/targets.routes';
 import { TargetsComponent } from '@modules/target/list/targets.component';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { TargetComponent } from './details/target.component';
+import { TargetConnectionResultComponent } from './connection-result/target-connection-result.component';
 import { CoreModule } from '@core/core.module';
 import { TooltipModule } from 'ngx-bootstrap/tooltip';
 
@@ -40,7 +41,8 @@ import { TooltipModule } from 'ngx-bootstrap/tooltip';
     ],
     declarations: [
         TargetsComponent,
-        TargetComponent
+        TargetComponent,
+        TargetConnectionResultComponent
     ],
 })
 export class TargetModule {

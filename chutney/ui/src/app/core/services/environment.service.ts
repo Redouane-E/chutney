@@ -7,7 +7,7 @@
 
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Environment, EnvironmentVariable, Target, TargetFilter } from '@model';
+import { Environment, EnvironmentVariable, Target, TargetConnectionCheckResult, TargetFilter } from '@model';
 import { environment as server } from '../../../environments/environment';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { map, tap } from 'rxjs/operators';
@@ -110,6 +110,16 @@ export class EnvironmentService {
 
     deleteEnvironmentTarget(environmentName: string, targetName: string): Observable<Object> {
         return this.http.delete(server.backend + this.envBaseUrl + '/' + environmentName + '/targets/' + targetName);
+    }
+
+    checkTargetConnection(environmentName: string, targetName: string): Observable<TargetConnectionCheckResult> {
+        return this.http.post<TargetConnectionCheckResult>(
+            server.backend + this.envBaseUrl + '/' + environmentName + '/targets/' + targetName + '/connection-check', null);
+    }
+
+    checkTargetValues(target: Target): Observable<TargetConnectionCheckResult> {
+        return this.http.post<TargetConnectionCheckResult>(
+            server.backend + this.targetBaseUrl + '/connection-check', target);
     }
 
     exportTargetOn(environmentName: string, targetName: string): Observable<void> {

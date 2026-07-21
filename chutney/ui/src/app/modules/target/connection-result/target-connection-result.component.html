@@ -1,0 +1,39 @@
+<!--
+  ~ SPDX-FileCopyrightText: 2017-2026 Enedis
+  ~
+  ~ SPDX-License-Identifier: Apache-2.0
+  ~
+  -->
+
+@if (testing) {
+  <div class="connection-result d-flex align-items-center gap-2 text-muted small py-1" role="status" aria-live="polite">
+    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+    <span>{{ 'admin.targets.connection.testing' | translate }}</span>
+  </div>
+} @else if (result) {
+  <div class="connection-result alert mb-0 py-2 px-3" [ngClass]="alertClass" role="status" aria-live="polite">
+    <div class="d-flex align-items-start gap-2">
+      <i class="bi flex-shrink-0 fs-6" [ngClass]="iconClass" aria-hidden="true"></i>
+      <div class="flex-grow-1 min-w-0">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="fw-semibold">{{ titleKey | translate }}</span>
+          @if (result.status === 'UP') {
+            <span class="small meta">{{ result.durationMs }} {{ 'admin.targets.connection.ms' | translate }} · {{ 'admin.targets.connection.testedNow' | translate }}</span>
+          }
+        </div>
+        @if (hasHint) {
+          <div class="small mt-1 hint">{{ hintKey | translate }}</div>
+        }
+        @if (result.detail) {
+          <button type="button" class="btn btn-link btn-sm p-0 mt-1 details-toggle"
+                  (click)="showDetails = !showDetails" [attr.aria-expanded]="showDetails">
+            {{ (showDetails ? 'admin.targets.connection.hideDetails' : 'admin.targets.connection.showDetails') | translate }}
+          </button>
+          @if (showDetails) {
+            <pre class="detail small mt-1 mb-0">{{ result.detail }}</pre>
+          }
+        }
+      </div>
+    </div>
+  </div>
+}
