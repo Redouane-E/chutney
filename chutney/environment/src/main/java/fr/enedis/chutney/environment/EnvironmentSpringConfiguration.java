@@ -11,6 +11,7 @@ import fr.enedis.chutney.environment.api.environment.EmbeddedEnvironmentApi;
 import fr.enedis.chutney.environment.api.target.EmbeddedTargetApi;
 import fr.enedis.chutney.environment.api.variable.EnvironmentVariableApi;
 import fr.enedis.chutney.server.core.domain.environment.UpdateEnvironmentHandler;
+import fr.enedis.chutney.server.core.domain.environment.UpdateTargetHandler;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -25,8 +26,10 @@ public class EnvironmentSpringConfiguration {
 
 
     @Bean
-    EnvironmentConfiguration environmentConfiguration(@Value(CONFIGURATION_FOLDER_SPRING_VALUE) String storeFolderPath, List<UpdateEnvironmentHandler> updateEnvironmentHandlers) {
-        return new EnvironmentConfiguration(storeFolderPath.concat(ENVIRONMENT_FOLDER), updateEnvironmentHandlers);
+    EnvironmentConfiguration environmentConfiguration(@Value(CONFIGURATION_FOLDER_SPRING_VALUE) String storeFolderPath,
+                                                      List<UpdateEnvironmentHandler> updateEnvironmentHandlers,
+                                                      List<UpdateTargetHandler> updateTargetHandlers) {
+        return new EnvironmentConfiguration(storeFolderPath.concat(ENVIRONMENT_FOLDER), updateEnvironmentHandlers, updateTargetHandlers);
     }
 
     @Bean

@@ -15,6 +15,7 @@ import fr.enedis.chutney.environment.domain.EnvironmentRepository;
 import fr.enedis.chutney.environment.domain.EnvironmentService;
 import fr.enedis.chutney.environment.infra.JsonFilesEnvironmentRepository;
 import fr.enedis.chutney.server.core.domain.environment.UpdateEnvironmentHandler;
+import fr.enedis.chutney.server.core.domain.environment.UpdateTargetHandler;
 import java.util.List;
 
 public class EnvironmentConfiguration {
@@ -26,12 +27,18 @@ public class EnvironmentConfiguration {
     private final EmbeddedVariableApi variableApi;
 
     public EnvironmentConfiguration(String storeFolderPath) {
-        this(storeFolderPath, null);
+        this(storeFolderPath, null, null);
     }
 
     public EnvironmentConfiguration(String storeFolderPath, List<UpdateEnvironmentHandler> updateEnvironmentHandlers) {
+        this(storeFolderPath, updateEnvironmentHandlers, null);
+    }
+
+    public EnvironmentConfiguration(String storeFolderPath,
+                                    List<UpdateEnvironmentHandler> updateEnvironmentHandlers,
+                                    List<UpdateTargetHandler> updateTargetHandlers) {
         this.environmentRepository = createEnvironmentRepository(storeFolderPath);
-        EnvironmentService environmentService = createEnvironmentService(environmentRepository, updateEnvironmentHandlers);
+        EnvironmentService environmentService = createEnvironmentService(environmentRepository, updateEnvironmentHandlers, updateTargetHandlers);
         this.environmentApi = new EmbeddedEnvironmentApi(environmentService);
         this.targetApi = new EmbeddedTargetApi(environmentService);
         this.variableApi = new EmbeddedVariableApi(environmentService);
@@ -49,8 +56,10 @@ public class EnvironmentConfiguration {
         return new JsonFilesEnvironmentRepository(storeFolderPath);
     }
 
-    private EnvironmentService createEnvironmentService(EnvironmentRepository environmentRepository, List<UpdateEnvironmentHandler> updateEnvironmentHandlers) {
-        return new EnvironmentService(environmentRepository, updateEnvironmentHandlers);
+    private EnvironmentService createEnvironmentService(EnvironmentRepository environmentRepository,
+                                                        List<UpdateEnvironmentHandler> updateEnvironmentHandlers,
+                                                        List<UpdateTargetHandler> updateTargetHandlers) {
+        return new EnvironmentService(environmentRepository, updateEnvironmentHandlers, updateTargetHandlers);
     }
 
     public EmbeddedEnvironmentApi getEmbeddedEnvironmentApi() {

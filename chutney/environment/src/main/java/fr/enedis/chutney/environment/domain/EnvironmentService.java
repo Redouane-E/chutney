@@ -21,6 +21,7 @@ import fr.enedis.chutney.environment.domain.exception.TargetNotFoundException;
 import fr.enedis.chutney.environment.domain.exception.UnresolvedEnvironmentException;
 import fr.enedis.chutney.environment.domain.exception.VariableAlreadyExistingException;
 import fr.enedis.chutney.server.core.domain.environment.UpdateEnvironmentHandler;
+import fr.enedis.chutney.server.core.domain.environment.UpdateTargetHandler;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -39,15 +40,22 @@ public class EnvironmentService {
     private final Logger logger = LoggerFactory.getLogger(EnvironmentService.class);
     private final EnvironmentRepository environmentRepository;
     private final List<UpdateEnvironmentHandler> updateEnvironmentHandlers;
+    private final List<UpdateTargetHandler> updateTargetHandlers;
 
-    public EnvironmentService(EnvironmentRepository environmentRepository, List<UpdateEnvironmentHandler> updateEnvironmentHandlers) {
+    public EnvironmentService(EnvironmentRepository environmentRepository,
+                              List<UpdateEnvironmentHandler> updateEnvironmentHandlers,
+                              List<UpdateTargetHandler> updateTargetHandlers) {
         this.environmentRepository = environmentRepository;
         this.updateEnvironmentHandlers = Optional.ofNullable(updateEnvironmentHandlers).orElse(emptyList());
+        this.updateTargetHandlers = Optional.ofNullable(updateTargetHandlers).orElse(emptyList());
+    }
+
+    public EnvironmentService(EnvironmentRepository environmentRepository, List<UpdateEnvironmentHandler> updateEnvironmentHandlers) {
+        this(environmentRepository, updateEnvironmentHandlers, emptyList());
     }
 
     public EnvironmentService(EnvironmentRepository environmentRepository) {
-        this.environmentRepository = environmentRepository;
-        this.updateEnvironmentHandlers = emptyList();
+        this(environmentRepository, emptyList(), emptyList());
     }
 
     public Set<String> listEnvironmentsNames() {
@@ -151,12 +159,14 @@ public class EnvironmentService {
         Environment environment = environmentRepository.findByName(target.environment);
         Environment newEnvironment = environment.addTarget(target);
         createOrUpdate(newEnvironment);
+        updateTargetHandlers.forEach(handler -> handler.updateTarget(target.environment, target.name, target.name));
     }
 
     public void deleteTarget(String environmentName, String targetName) throws EnvironmentNotFoundException, TargetNotFoundException {
         Environment environment = environmentRepository.findByName(environmentName);
         Environment newEnvironment = environment.deleteTarget(targetName);
         createOrUpdate(newEnvironment);
+        updateTargetHandlers.forEach(handler -> handler.deleteTarget(environmentName, targetName));
     }
 
     public void deleteTarget(String targetName) throws EnvironmentNotFoundException, TargetNotFoundException {
@@ -166,6 +176,7 @@ public class EnvironmentService {
             .forEach(env -> {
                 Environment newEnvironment = env.deleteTarget(targetName);
                 createOrUpdate(newEnvironment);
+                updateTargetHandlers.forEach(handler -> handler.deleteTarget(env.name, targetName));
             });
     }
 
@@ -173,6 +184,8 @@ public class EnvironmentService {
         Environment environment = environmentRepository.findByName(targetToUpdate.environment);
         Environment newEnvironment = environment.updateTarget(previousTargetName, targetToUpdate);
         createOrUpdate(newEnvironment);
+        updateTargetHandlers.forEach(handler ->
+            handler.updateTarget(targetToUpdate.environment, previousTargetName, targetToUpdate.name));
         logger.debug("Updated target " + previousTargetName + " as " + targetToUpdate.name);
     }
 

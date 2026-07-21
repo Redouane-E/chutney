@@ -103,15 +103,31 @@ class HttpConnectionCheckerTest {
         void should_fail_when_configured_credentials_are_rejected() {
             // Given: the target carries credentials but the server rejects them
             wireMockServer.stubFor(any(anyUrl()).willReturn(aResponse().withStatus(401)));
-            Target target = TestTarget.TestTargetBuilder.builder()
+
+            // When / Then
+            assertThatThrownBy(() -> checker.check(targetWithCredentials(), 2000)).isInstanceOf(Exception.class);
+        }
+
+        @Test
+        void should_succeed_when_the_base_url_is_forbidden() {
+            // Given: a healthy service that simply forbids its base url — a common, valid setup that
+            // must not be reported as a broken target
+            wireMockServer.stubFor(any(anyUrl()).willReturn(aResponse().withStatus(403)));
+
+            // When
+            Throwable thrown = catchThrowable(() -> checker.check(targetWithCredentials(), 2000));
+
+            // Then
+            assertThat(thrown).isNull();
+        }
+
+        private Target targetWithCredentials() {
+            return TestTarget.TestTargetBuilder.builder()
                 .withTargetId("http-target")
                 .withUrl("http://localhost:" + wireMockServer.port())
                 .withProperty("username", "user")
                 .withProperty("password", "wrong")
                 .build();
-
-            // When / Then
-            assertThatThrownBy(() -> checker.check(target, 2000)).isInstanceOf(Exception.class);
         }
     }
 

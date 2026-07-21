@@ -44,4 +44,8 @@ public final class ServerConfigurationValues {
     public static final String TASK_SQL_MINIMUM_MEMORY_PERCENTAGE_REQUIRED = "chutney.actions.sql.minimum-memory-percentage-required";
     public static final String TASK_SQL_MINIMUM_MEMORY_PERCENTAGE_REQUIRED_SPRING_VALUE = "${" + TASK_SQL_MINIMUM_MEMORY_PERCENTAGE_REQUIRED + ":0}";
     public static final String TARGET_CONNECTION_CHECK_TIMEOUT_SPRING_VALUE = "${chutney.targets.connection-check.timeout:5000}";
+    public static final String TARGET_CONNECTION_STATUS_TTL_VALUE_SPRING_VALUE = "${chutney.targets.connection-check.status-ttl.value:15}";
+    public static final String TARGET_CONNECTION_STATUS_TTL_UNIT_SPRING_VALUE = "${chutney.targets.connection-check.status-ttl.unit:MINUTES}";
+    public static final String TARGET_CONNECTION_CHECK_THROTTLE_SPRING_VALUE = "${chutney.targets.connection-check.throttle-ms:30000}";
+    public static final String TARGET_CONNECTION_CHECK_POOL_SIZE_SPRING_VALUE = "${chutney.targets.connection-check.executor.pool-size:10}";
 }

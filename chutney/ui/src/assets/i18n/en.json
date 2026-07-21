@@ -396,22 +396,47 @@
                 "ms": "ms",
                 "status": {
                     "label": "Status",
-                    "legend": "Connection status — green: reachable, red: failed, grey: not testable, empty: not tested yet. Hover a dot for details.",
+                    "legend": "Connection status — green: reachable, red: failed, grey: not testable, dash: not checked recently. Results are shared with everyone and expire; hover a dot for details and how old it is.",
                     "up": "Up",
                     "down": "Down",
                     "notTestable": "Not testable",
                     "notTested": "Not tested"
                 },
                 "reason": {
-                    "OK": { "title": "Connected", "hint": "" },
-                    "UNKNOWN_HOST": { "title": "Host not found", "hint": "The hostname couldn’t be resolved. Check for a typo in the URL." },
-                    "CONNECTION_REFUSED": { "title": "Nothing is listening on that port", "hint": "The port is closed, or the service is down or firewalled. Check the host and port." },
-                    "TIMEOUT": { "title": "Connection timed out", "hint": "The host is unreachable from the Chutney server — likely a network or firewall block." },
-                    "AUTH_FAILED": { "title": "Authentication failed", "hint": "The server rejected the credentials. Check the username and password (or token)." },
-                    "TLS_ERROR": { "title": "TLS handshake failed", "hint": "The server certificate wasn’t trusted. Check the certificate or truststore configuration." },
-                    "UNREACHABLE": { "title": "Connection failed", "hint": "The target couldn’t be reached. Check the URL and that the service is running." },
-                    "PROTOCOL_NOT_SUPPORTED": { "title": "Not testable yet", "hint": "Chutney can’t probe this protocol from here — it’s still validated when the scenario runs." }
-                }
+                    "OK": {
+                        "title": "Connected",
+                        "hint": ""
+                    },
+                    "UNKNOWN_HOST": {
+                        "title": "Host not found",
+                        "hint": "The hostname couldn’t be resolved. Check for a typo in the URL."
+                    },
+                    "CONNECTION_REFUSED": {
+                        "title": "Nothing is listening on that port",
+                        "hint": "The port is closed, or the service is down or firewalled. Check the host and port."
+                    },
+                    "TIMEOUT": {
+                        "title": "Connection timed out",
+                        "hint": "The host is unreachable from the Chutney server — likely a network or firewall block."
+                    },
+                    "AUTH_FAILED": {
+                        "title": "Authentication failed",
+                        "hint": "The server rejected the credentials. Check the username and password (or token)."
+                    },
+                    "TLS_ERROR": {
+                        "title": "TLS handshake failed",
+                        "hint": "The server certificate wasn’t trusted. Check the certificate or truststore configuration."
+                    },
+                    "UNREACHABLE": {
+                        "title": "Connection failed",
+                        "hint": "The target couldn’t be reached. Check the URL and that the service is running."
+                    },
+                    "PROTOCOL_NOT_SUPPORTED": {
+                        "title": "Not testable yet",
+                        "hint": "Chutney can’t probe this protocol from here — it’s still validated when the scenario runs."
+                    }
+                },
+                "checkFailed": "The connection check could not be run"
             },
             "username.label": "Username",
             "password.label": "Password",

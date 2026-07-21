@@ -265,7 +265,10 @@ class SecuredControllerSpringBootIntegrationTest {
             {GET, EnvironmentController.BASE_URL + "/DEFAULT/targets/targetName", TARGET_READ.name(), null, OK},
             {PUT, TargetController.TARGET_BASE_URI + "/targetName", TARGET_WRITE.name(), "{\"name\":\"targetName\",\"url\":\"https://localhost\", \"environment\":\"DEFAULT\"}", OK},
             {POST, EnvironmentController.BASE_URL + "/DEFAULT/targets/targetName/connection-check", TARGET_READ.name(), null, OK},
-            {POST, "/api/v2/targets/connection-check", TARGET_READ.name(), "{\"name\":\"targetName\",\"url\":\"https://localhost\",\"environment\":\"DEFAULT\"}", OK},
+            // probing an arbitrary url supplied in the body needs write rights: it makes the server
+            // open a connection of the caller's choosing, which a read-only user must not be able to do
+            {POST, "/api/v2/targets/connection-check", TARGET_WRITE.name(), "{\"name\":\"targetName\",\"url\":\"https://localhost\",\"environment\":\"DEFAULT\"}", OK},
+            {GET, "/api/v2/targets/connection-status", TARGET_READ.name(), null, OK},
             {DELETE, EnvironmentController.BASE_URL + "/DEFAULT/targets/targetName", TARGET_WRITE.name(), null, OK},
             {DELETE, TargetController.TARGET_BASE_URI + "/targetName", TARGET_WRITE.name(), null, OK},
 

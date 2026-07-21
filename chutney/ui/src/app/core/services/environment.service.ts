@@ -7,7 +7,7 @@
 
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { Environment, EnvironmentVariable, Target, TargetConnectionCheckResult, TargetFilter } from '@model';
+import { Environment, EnvironmentVariable, Target, TargetConnectionCheckEntry, TargetConnectionCheckResult, TargetFilter } from '@model';
 import { environment as server } from '../../../environments/environment';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { map, tap } from 'rxjs/operators';
@@ -112,9 +112,20 @@ export class EnvironmentService {
         return this.http.delete(server.backend + this.envBaseUrl + '/' + environmentName + '/targets/' + targetName);
     }
 
-    checkTargetConnection(environmentName: string, targetName: string): Observable<TargetConnectionCheckResult> {
-        return this.http.post<TargetConnectionCheckResult>(
-            server.backend + this.envBaseUrl + '/' + environmentName + '/targets/' + targetName + '/connection-check', null);
+    /**
+     * Probes a saved target. The outcome is recorded server-side, so every user sees it.
+     * @param force true for an explicit single test (always re-probes); false lets a bulk check reuse
+     *              a recent result instead of hammering the probed system.
+     */
+    checkTargetConnection(environmentName: string, targetName: string, force = true): Observable<TargetConnectionCheckEntry> {
+        return this.http.post<TargetConnectionCheckEntry>(
+            server.backend + this.envBaseUrl + '/' + environmentName + '/targets/' + targetName + '/connection-check',
+            null,
+            {params: new HttpParams().set('force', force)});
+    }
+
+    listTargetConnectionStatuses(): Observable<TargetConnectionCheckEntry[]> {
+        return this.http.get<TargetConnectionCheckEntry[]>(server.backend + this.targetBaseUrl + '/connection-status');
     }
 
     checkTargetValues(target: Target): Observable<TargetConnectionCheckResult> {

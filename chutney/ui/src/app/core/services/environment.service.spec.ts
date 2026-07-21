@@ -34,17 +34,38 @@ describe('EnvironmentService', () => {
 
     afterEach(() => httpMock.verify());
 
-    it('should POST to the target connection-check endpoint', () => {
-        const expected = { status: 'UP', message: 'Connection successful', durationMs: 5 };
+    it('should POST to the target connection-check endpoint, forcing a fresh probe', () => {
+        const expected = { environmentName: 'DEFAULT', targetName: 'myTarget', status: 'UP', reason: 'OK', detail: null, durationMs: 5, ageMs: 0, ttlMs: 900000 };
 
         service.checkTargetConnection('DEFAULT', 'myTarget').subscribe(result => {
             expect(result.status).toBe('UP');
             expect(result.durationMs).toBe(5);
+            expect(result.ttlMs).toBe(900000);
         });
 
         const req = httpMock.expectOne(r => r.url.endsWith('/api/v2/environments/DEFAULT/targets/myTarget/connection-check'));
         expect(req.request.method).toBe('POST');
+        expect(req.request.params.get('force')).toBe('true');
         req.flush(expected);
+    });
+
+    it('should not force a probe for a bulk check', () => {
+        service.checkTargetConnection('DEFAULT', 'myTarget', false).subscribe();
+
+        const req = httpMock.expectOne(r => r.url.endsWith('/api/v2/environments/DEFAULT/targets/myTarget/connection-check'));
+        expect(req.request.params.get('force')).toBe('false');
+        req.flush({});
+    });
+
+    it('should GET the statuses shared by the instance', () => {
+        service.listTargetConnectionStatuses().subscribe(statuses => {
+            expect(statuses.length).toBe(1);
+            expect(statuses[0].targetName).toBe('myTarget');
+        });
+
+        const req = httpMock.expectOne(r => r.url.endsWith('/api/v2/targets/connection-status'));
+        expect(req.request.method).toBe('GET');
+        req.flush([{ environmentName: 'DEFAULT', targetName: 'myTarget', status: 'UP', reason: 'OK', detail: null, durationMs: 5, ageMs: 0, ttlMs: 900000 }]);
     });
 
     it('should POST the target definition to the test-before-save endpoint', () => {

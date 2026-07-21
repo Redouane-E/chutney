@@ -62,3 +62,25 @@ export class TargetConnectionCheckResult {
     ) {
     }
 }
+
+/**
+ * Last known connectivity result of a saved target, as recorded by the server and shared by every
+ * user of the instance.
+ *
+ * Freshness comes as an age and a retention rather than a timestamp: the age can then be tracked and
+ * the result dropped at the same moment the server drops it, using only the browser's own clock —
+ * which need not agree with the server's.
+ */
+export class TargetConnectionCheckEntry {
+    constructor(
+        public environmentName: string,
+        public targetName: string,
+        public status: TargetConnectionStatus,
+        public reason: TargetConnectionReason,
+        public detail: string,
+        public durationMs: number,
+        public ageMs: number,
+        public ttlMs: number,
+    ) {
+    }
+}

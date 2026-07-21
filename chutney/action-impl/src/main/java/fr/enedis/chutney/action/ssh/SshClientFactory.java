@@ -29,11 +29,18 @@ public class SshClientFactory {
     public static ClientSession buildSSHClientSession(Target target, long timeout) throws IOException {
         Connection connection = Connection.from(target);
         SshClient defaultClient = createDefaultClient();
-        defaultClient.setUserAuthFactories(getAuthFactory(connection));
-        ClientSession session = getConnectedSession(defaultClient, connection);
+        try {
+            defaultClient.setUserAuthFactories(getAuthFactory(connection));
+            ClientSession session = getConnectedSession(defaultClient, connection, timeout);
 
-        session.auth().verify(timeout);
-        return session;
+            session.auth().verify(timeout);
+            return session;
+        } catch (Exception e) {
+            // The client owns i/o threads as soon as it is started: releasing it here keeps a refused
+            // connection or a rejected authentication from leaking one on every attempt.
+            defaultClient.stop();
+            throw e;
+        }
     }
 
     private static SshClient createDefaultClient() {
@@ -49,8 +56,10 @@ public class SshClientFactory {
         return singletonList(UserAuthPasswordFactory.INSTANCE);
     }
 
-    private static ClientSession getConnectedSession(SshClient client, Connection connection) throws IOException {
-        ConnectFuture connectFuture = client.connect(connection.username, connection.serverHost, connection.serverPort).verify();
+    private static ClientSession getConnectedSession(SshClient client, Connection connection, long timeout) throws IOException {
+        // Bounded: an unanswered connect (a dropped packet rather than a refusal) would otherwise wait
+        // forever and hold on to its thread, whatever timeout the caller asked for.
+        ConnectFuture connectFuture = client.connect(connection.username, connection.serverHost, connection.serverPort).verify(timeout);
         return configureSessionAuthMethod(connectFuture.getSession(), connection);
     }
 

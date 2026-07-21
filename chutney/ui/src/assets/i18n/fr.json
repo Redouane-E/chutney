@@ -396,22 +396,47 @@
                 "ms": "ms",
                 "status": {
                     "label": "État",
-                    "legend": "État de connexion — vert : accessible, rouge : échec, gris : non testable, vide : pas encore testé. Survolez un point pour le détail.",
+                    "legend": "État de connexion — vert : accessible, rouge : échec, gris : non testable, tiret : pas de test récent. Les résultats sont partagés entre tous et expirent ; survolez un point pour le détail et son ancienneté.",
                     "up": "Accessible",
                     "down": "Inaccessible",
                     "notTestable": "Non testable",
                     "notTested": "Non testé"
                 },
                 "reason": {
-                    "OK": { "title": "Connecté", "hint": "" },
-                    "UNKNOWN_HOST": { "title": "Hôte introuvable", "hint": "Le nom d’hôte n’a pas pu être résolu. Vérifiez l’URL." },
-                    "CONNECTION_REFUSED": { "title": "Aucun service sur ce port", "hint": "Le port est fermé, ou le service est arrêté ou bloqué par un pare-feu. Vérifiez l’hôte et le port." },
-                    "TIMEOUT": { "title": "Délai de connexion dépassé", "hint": "L’hôte est injoignable depuis le serveur Chutney — probablement un blocage réseau ou pare-feu." },
-                    "AUTH_FAILED": { "title": "Échec de l’authentification", "hint": "Le serveur a rejeté les identifiants. Vérifiez le nom d’utilisateur et le mot de passe (ou le jeton)." },
-                    "TLS_ERROR": { "title": "Échec de la négociation TLS", "hint": "Le certificat du serveur n’est pas approuvé. Vérifiez le certificat ou la configuration du truststore." },
-                    "UNREACHABLE": { "title": "Échec de la connexion", "hint": "La cible n’a pas pu être jointe. Vérifiez l’URL et que le service est démarré." },
-                    "PROTOCOL_NOT_SUPPORTED": { "title": "Non testable pour l’instant", "hint": "Chutney ne peut pas sonder ce protocole ici — il reste validé à l’exécution du scénario." }
-                }
+                    "OK": {
+                        "title": "Connecté",
+                        "hint": ""
+                    },
+                    "UNKNOWN_HOST": {
+                        "title": "Hôte introuvable",
+                        "hint": "Le nom d’hôte n’a pas pu être résolu. Vérifiez l’URL."
+                    },
+                    "CONNECTION_REFUSED": {
+                        "title": "Aucun service sur ce port",
+                        "hint": "Le port est fermé, ou le service est arrêté ou bloqué par un pare-feu. Vérifiez l’hôte et le port."
+                    },
+                    "TIMEOUT": {
+                        "title": "Délai de connexion dépassé",
+                        "hint": "L’hôte est injoignable depuis le serveur Chutney — probablement un blocage réseau ou pare-feu."
+                    },
+                    "AUTH_FAILED": {
+                        "title": "Échec de l’authentification",
+                        "hint": "Le serveur a rejeté les identifiants. Vérifiez le nom d’utilisateur et le mot de passe (ou le jeton)."
+                    },
+                    "TLS_ERROR": {
+                        "title": "Échec de la négociation TLS",
+                        "hint": "Le certificat du serveur n’est pas approuvé. Vérifiez le certificat ou la configuration du truststore."
+                    },
+                    "UNREACHABLE": {
+                        "title": "Échec de la connexion",
+                        "hint": "La cible n’a pas pu être jointe. Vérifiez l’URL et que le service est démarré."
+                    },
+                    "PROTOCOL_NOT_SUPPORTED": {
+                        "title": "Non testable pour l’instant",
+                        "hint": "Chutney ne peut pas sonder ce protocole ici — il reste validé à l’exécution du scénario."
+                    }
+                },
+                "checkFailed": "Le test de connexion n’a pas pu être lancé"
             },
             "username.label": "Utilisateur",
             "password.label": "Mot de passe",

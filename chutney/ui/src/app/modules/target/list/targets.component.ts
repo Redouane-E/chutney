@@ -7,22 +7,28 @@
 
 import { Component, OnDestroy, OnInit } from '@angular/core';
 
-import { Environment, Target, Authorization, TargetConnectionCheckResult } from '@model';
+import { Environment, Target, Authorization, TargetConnectionCheckEntry, TargetConnectionCheckResult } from '@model';
 import { EnvironmentService, LoginService } from '@core/services';
 import { distinct, filterOnTextContent, match } from '@shared/tools';
-import { Subject, Subscription, takeUntil } from 'rxjs';
+import { EMPTY, Subject, Subscription, from, takeUntil } from 'rxjs';
+import { catchError, mergeMap, tap } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 import { ConnectionKind, reasonHintKey, reasonKind, reasonTitleKey } from '../connection-check.util';
 
 type StatusKind = ConnectionKind | 'idle' | 'testing';
 
+/** How many targets a bulk check probes at once, to keep one click from flooding the server. */
+const BULK_CHECK_CONCURRENCY = 4;
+
 interface ConnectionCheck {
     testing: boolean;
     result: TargetConnectionCheckResult | null;
-    checkedAt?: number;
+    /** Age reported by the server, and the browser time it was received: together they track the
+     *  real age without ever comparing the two clocks. */
+    ageMsAtLoad?: number;
+    receivedAt?: number;
+    ttlMs?: number;
 }
-
-const CHECKS_STORAGE_PREFIX = 'chutney.targets.connection-checks';
 
 @Component({
     selector: 'chutney-targets',
@@ -42,7 +48,6 @@ export class TargetsComponent implements OnInit, OnDestroy {
 
     isAuthorizedToWriteTargets: boolean = false;
 
-    private currentUserId = 'anonymous';
     private readonly connectionChecks = new Map<string, ConnectionCheck>();
     private readonly selectedEnvTabs = new Map<string, string>();
 
@@ -59,10 +64,7 @@ export class TargetsComponent implements OnInit, OnDestroy {
     }
 
     ngOnInit() {
-        this.loginService.getUser()
-            .pipe(takeUntil(this.unsubscribeSub$))
-            .subscribe(user => this.currentUserId = user?.id || 'anonymous');
-        this.restoreChecks();
+        this.loadConnectionStatuses();
         this.loadTargets();
     }
 
@@ -82,80 +84,113 @@ export class TargetsComponent implements OnInit, OnDestroy {
         this.selectedEnvTabs.set(targetName, event.nextId);
     }
 
-    testConnection(targetName: string, environmentName: string) {
+    /**
+     * @param force true for an explicit single test — it must always re-probe, since the user has
+     *              usually just changed something and needs the truth rather than a recent verdict.
+     */
+    testConnection(targetName: string, environmentName: string, force = true) {
         const key = this.checkKey(targetName, environmentName);
-        this.connectionChecks.set(key, { testing: true, result: null });
-        this.connectionSubscriptions.add(
-            this.environmentService.checkTargetConnection(environmentName, targetName).subscribe({
-                next: (result: TargetConnectionCheckResult) => this.storeCheck(key, result),
-                error: error => this.storeCheck(key,
-                    new TargetConnectionCheckResult('DOWN', 'UNREACHABLE', error?.error ?? error?.message ?? '', 0))
-            })
-        );
-    }
-
-    private storeCheck(key: string, result: TargetConnectionCheckResult) {
-        this.connectionChecks.set(key, { testing: false, result, checkedAt: Date.now() });
-        this.persistChecks();
+        this.connectionChecks.set(key, { ...this.connectionChecks.get(key), testing: true });
+        this.connectionSubscriptions.add(this.checkTarget(targetName, environmentName, force).subscribe());
     }
 
     /**
-     * Results are kept in this browser only — they are never shared with other users. The key is
-     * scoped to the signed-in user so that logging in as someone else on the same browser never
-     * surfaces the previous user's checks.
+     * Issues one check and folds its outcome into the map. A failed request says nothing about the
+     * target, so the last known status is kept and the error is reported as an error — showing the
+     * target as "down" would blame it for a problem with Chutney.
      */
-    private storageKey(): string {
-        return `${CHECKS_STORAGE_PREFIX}.${this.currentUserId}`;
+    private checkTarget(targetName: string, environmentName: string, force: boolean) {
+        const key = this.checkKey(targetName, environmentName);
+        const previous = { ...this.connectionChecks.get(key), testing: false };
+        return this.environmentService.checkTargetConnection(environmentName, targetName, force).pipe(
+            tap({
+                next: (entry: TargetConnectionCheckEntry) => this.connectionChecks.set(key, this.toCheck(entry)),
+                error: error => {
+                    this.connectionChecks.set(key, previous);
+                    this.errorMessage = this.requestErrorMessage(error);
+                }
+            }),
+            catchError(() => EMPTY)
+        );
     }
 
-    private persistChecks() {
-        const snapshot = {};
-        this.connectionChecks.forEach((check, key) => {
-            if (check.result && check.checkedAt) {
-                snapshot[key] = { result: check.result, checkedAt: check.checkedAt };
-            }
-        });
-        try {
-            localStorage.setItem(this.storageKey(), JSON.stringify(snapshot));
-        } catch (e) {
-            // storage unavailable (private mode / quota) — statuses simply do not survive the reload
+    private requestErrorMessage(error: any): string {
+        const detail = error?.error;
+        if (typeof detail === 'string' && detail) {
+            return detail;
         }
+        return error?.message ?? this.translateService.instant('admin.targets.connection.checkFailed');
     }
 
-    private restoreChecks() {
-        try {
-            const raw = localStorage.getItem(this.storageKey());
-            if (!raw) {
-                return;
-            }
-            const snapshot = JSON.parse(raw);
-            Object.keys(snapshot).forEach(key => {
-                const entry = snapshot[key];
-                this.connectionChecks.set(key, { testing: false, result: entry.result, checkedAt: entry.checkedAt });
+    /**
+     * A probe runs from the server, so its outcome is the same for everyone: the list starts from what
+     * the instance already knows instead of blank, and shows how old each result is.
+     */
+    private loadConnectionStatuses() {
+        this.environmentService.listTargetConnectionStatuses()
+            .pipe(takeUntil(this.unsubscribeSub$))
+            .subscribe({
+                next: entries => entries.forEach(entry => {
+                    const key = this.checkKey(entry.targetName, entry.environmentName);
+                    // A check started while this was in flight is more current than what the server
+                    // knew when it answered, so it wins.
+                    if (!this.connectionChecks.get(key)?.testing) {
+                        this.connectionChecks.set(key, this.toCheck(entry));
+                    }
+                }),
+                error: () => {
+                    // statuses are a convenience: failing to read them must not break the target list
+                }
             });
-        } catch (e) {
-            // unreadable snapshot — start from a clean slate
-        }
     }
 
-    private ageLabel(checkedAt: number): string {
-        const seconds = Math.max(0, Math.round((Date.now() - checkedAt) / 1000));
+    private toCheck(entry: TargetConnectionCheckEntry): ConnectionCheck {
+        return {
+            testing: false,
+            result: new TargetConnectionCheckResult(entry.status, entry.reason, entry.detail, entry.durationMs),
+            ageMsAtLoad: entry.ageMs ?? 0,
+            receivedAt: Date.now(),
+            ttlMs: entry.ttlMs
+        };
+    }
+
+    private ageLabel(check: ConnectionCheck): string {
+        const seconds = Math.max(0, Math.round(this.currentAgeMs(check) / 1000));
         if (seconds < 60) {
             return this.translateService.instant('admin.targets.connection.testedNow');
         }
-        const minutes = Math.round(seconds / 60);
-        const age = minutes < 60 ? `${minutes} min` : `${Math.round(minutes / 60)} h`;
+        const minutes = Math.floor(seconds / 60);
+        const age = minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h`;
         return this.translateService.instant('admin.targets.connection.checkedAgo', { age });
     }
 
-    /** Probes every visible target on its active environment tab, so the status column fills in one click. */
+    /** Age of the result now: what the server reported, plus the time elapsed in this browser since. */
+    private currentAgeMs(check: ConnectionCheck): number {
+        return (check.ageMsAtLoad ?? 0) + (Date.now() - (check.receivedAt ?? Date.now()));
+    }
+
+    /**
+     * Probes every visible target on its active environment tab, so the status column fills in one
+     * click. Unforced on purpose: recent results are reused, so several users doing this at once do
+     * not stampede the probed systems.
+     */
     testAll() {
-        this.targetsNames.forEach(targetName => {
-            const environmentName = this.activeEnvTab(targetName);
-            if (environmentName && !this.isTesting(targetName, environmentName)) {
-                this.testConnection(targetName, environmentName);
-            }
-        });
+        const pending = this.targetsNames
+            .map(targetName => ({ targetName, environmentName: this.activeEnvTab(targetName) }))
+            .filter(({ targetName, environmentName }) => environmentName && !this.isTesting(targetName, environmentName));
+
+        pending.forEach(({ targetName, environmentName }) =>
+            this.connectionChecks.set(this.checkKey(targetName, environmentName),
+                { ...this.connectionChecks.get(this.checkKey(targetName, environmentName)), testing: true }));
+
+        // A few at a time: firing one request per target would tie up as many server threads as the
+        // list is long, for every user pressing this at once.
+        this.connectionSubscriptions.add(
+            from(pending).pipe(
+                mergeMap(({ targetName, environmentName }) => this.checkTarget(targetName, environmentName, false), BULK_CHECK_CONCURRENCY),
+                takeUntil(this.unsubscribeSub$)
+            ).subscribe()
+        );
     }
 
     isTestingAll(): boolean {
@@ -178,7 +213,18 @@ export class TargetsComponent implements OnInit, OnDestroy {
         if (check.testing) {
             return 'testing';
         }
-        return check.result ? reasonKind(check.result.reason) : 'idle';
+        if (!check.result || this.isExpired(check)) {
+            return 'idle';
+        }
+        return reasonKind(check.result.reason);
+    }
+
+    /**
+     * The server forgets a status once its retention has passed. Honouring the same limit here keeps an
+     * open page from showing a verdict the server — and a colleague who just reloaded — no longer has.
+     */
+    private isExpired(check: ConnectionCheck): boolean {
+        return !!check.ttlMs && this.currentAgeMs(check) > check.ttlMs;
     }
 
     /** Small colored dot: green = up, red = down, grey = not testable / not tested. */
@@ -230,9 +276,9 @@ export class TargetsComponent implements OnInit, OnDestroy {
                 lines.push(result.detail);
             }
         }
-        const checkedAt = this.connectionChecks.get(this.checkKey(targetName, environmentName))?.checkedAt;
-        if (checkedAt) {
-            lines.push(this.ageLabel(checkedAt));
+        const check = this.connectionChecks.get(this.checkKey(targetName, environmentName));
+        if (check?.receivedAt) {
+            lines.push(this.ageLabel(check));
         }
         return lines.join('\n');
     }
@@ -246,7 +292,9 @@ export class TargetsComponent implements OnInit, OnDestroy {
             next: envs => {
                 this.environments = envs;
                 this.targets = envs.flatMap(env => env.targets).sort(this.targetSortFunction());
-                this.targetsNames = distinct(this.targets.map(target => target.name));
+                // Honour a search typed while the list was still loading, rather than listing
+                // everything under a filter the user can see.
+                this.filter();
             },
             error: error => this.errorMessage = error.error
         });
@@ -267,9 +315,11 @@ export class TargetsComponent implements OnInit, OnDestroy {
         if (this.environmentFilter) {
             return this.environmentFilter.name;
         }
+        // No match is possible while the list and the search box are momentarily out of step, so this
+        // stays optional rather than throwing during rendering.
         return this.environments.find(env =>
             this.targetFilter ? this.matchEnv(env, targetName): this.exist(targetName, env)
-        ).name;
+        )?.name ?? this.environments[0]?.name ?? '';
     }
 
     private matchEnv(env: Environment, targetName) {
@@ -291,8 +341,11 @@ export class TargetsComponent implements OnInit, OnDestroy {
                 this.targets = this.environments.flatMap(e => e.targets);
             } else {
                 this.environmentFilter = env;
-                this.targets = env.targets;
+                this.targets = [...env.targets];
             }
+            // Per-row tab choices belong to the previous filtering: keeping them would show a status
+            // for an environment the user is no longer looking at.
+            this.selectedEnvTabs.clear();
             this.targets.sort(this.targetSortFunction());
         }
 
