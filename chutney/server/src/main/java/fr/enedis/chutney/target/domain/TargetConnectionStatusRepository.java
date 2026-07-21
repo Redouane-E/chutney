@@ -39,4 +39,19 @@ public interface TargetConnectionStatusRepository {
      * (the environment is deleted, renamed, or replaced wholesale by an import).
      */
     void evictEnvironment(String environmentName);
+
+    /**
+     * Changes whenever this target's status is invalidated, so a probe started earlier can tell that
+     * the target it describes is no longer the one on record.
+     */
+    long revision(String environmentName, String targetName);
+
+    /**
+     * Records the status only if nothing invalidated this target since {@code expectedRevision} was
+     * read. A probe takes seconds, and the target may be edited or deleted while it runs: its verdict
+     * describes the previous definition and must not undo that invalidation.
+     *
+     * @return true when the status was recorded
+     */
+    boolean saveIfUnchanged(TargetConnectionStatus status, long expectedRevision);
 }

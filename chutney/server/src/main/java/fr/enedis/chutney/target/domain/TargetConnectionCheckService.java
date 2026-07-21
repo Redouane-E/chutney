@@ -127,9 +127,14 @@ public class TargetConnectionCheckService {
             return join(running, environmentName, targetName);
         }
         try {
+            // Read before the target itself, so an edit happening anywhere from here on is detected.
+            long revision = statusRepository.revision(environmentName, targetName);
             TargetConnectionCheckResult result = check(targetApi.getTarget(environmentName, targetName));
             TargetConnectionStatus status = new TargetConnectionStatus(environmentName, targetName, result, Instant.now());
-            statusRepository.save(status);
+            // A probe takes seconds; if the target was edited or deleted meanwhile, this verdict
+            // describes the previous definition and must not resurrect what invalidation removed. The
+            // caller still gets its own answer — only the shared record is skipped.
+            statusRepository.saveIfUnchanged(status, revision);
             promise.complete(status);
             return status;
         } catch (RuntimeException e) {
@@ -315,16 +320,19 @@ public class TargetConnectionCheckService {
     private static String redactSecrets(String message) {
         String secretKey = "password|passwd|pwd|passphrase|secret|token|credential[s]?|auth|api[_-]?key|access[_-]?key|private[_-]?key";
         return message
-            // url user-info with a password: scheme://user:password@host
-            .replaceAll("(?i)(://[^:/@\\s]+):[^@\\s]+@", "$1:***@")
+            // url user-info with a password: scheme://user:password@host. The password is matched
+            // greedily up to the last '@' of the run: an unencoded '@' or '/' inside a password is a
+            // common mistake, and stopping at the first '@' would leave most of it in clear.
+            .replaceAll("(?i)(://[^:/@\\s]+):[^\\s]*@", "$1:***@")
             // url user-info carrying only a token: scheme://token@host
             .replaceAll("(?i)(://)[^:/@\\s]+@", "$1***@")
             // quoted values: password="s3cr3t" / password:'s3cr3t' (the usual kafka/jaas rendering)
             .replaceAll("(?i)(" + secretKey + ")(\\s*[=:]\\s*)([\"'])[^\"']*\\3", "$1$2$3***$3")
             // bare values, = or : separated
             .replaceAll("(?i)(" + secretKey + ")(\\s*[=:]\\s*)[^\\s;,&\"']+", "$1$2***")
-            // http basic-auth headers
-            .replaceAll("(?i)(basic|bearer)\\s+[A-Za-z0-9+/=._-]+", "$1 ***");
+            // http basic-auth headers — only what looks like encoded credential material, so prose
+            // such as "Bearer token has expired" keeps the word that explains the failure.
+            .replaceAll("(?i)\\b(basic|bearer)\\s+(?![A-Za-z]+\\b)([A-Za-z0-9+/=._-]{16,})", "$1 ***");
     }
 
 }

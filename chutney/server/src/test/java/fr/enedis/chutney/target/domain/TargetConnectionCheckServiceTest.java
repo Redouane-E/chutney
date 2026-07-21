@@ -103,10 +103,40 @@ class TargetConnectionCheckServiceTest {
 
         assertThat(detail)
             .doesNotContain("s3cr3t")
+            // assert on the tail too: matching only the whole password would pass while most of it
+            // survived, which is exactly how an earlier leak stayed hidden
             .doesNotContain("p@ss/w0rd")
+            .doesNotContain("ss/w0rd")
+            .doesNotContain("w0rd")
             .doesNotContain("ghp_AbCdEf0123456789")
             .doesNotContain("topsecret")
             .doesNotContain("YWRtaW46aHVudGVyMg==");
+    }
+
+    @Test
+    void should_redact_a_password_containing_unencoded_separators() {
+        // '@' and '/' inside a password are a common mistake; stopping at the first one would leave
+        // most of the password readable by everyone
+        givenTarget("http://localhost");
+        TargetConnectionCheckService service = serviceWith(checker(true,
+            new IllegalStateException("connect failed: mongodb://user:p@ss/w0rd@host:27017")));
+
+        String detail = service.check("DEFAULT", "target", true).result().detail();
+
+        assertThat(detail).contains("mongodb://user:***@host:27017");
+        assertThat(detail).doesNotContain("ss/w0rd");
+    }
+
+    @Test
+    void should_keep_prose_that_merely_mentions_an_authentication_scheme() {
+        givenTarget("http://localhost");
+        TargetConnectionCheckService service = serviceWith(checker(true,
+            new IllegalStateException("Bearer token has expired")));
+
+        String detail = service.check("DEFAULT", "target", true).result().detail();
+
+        // the word explaining the failure must survive; only credential material is hidden
+        assertThat(detail).contains("Bearer token has expired");
     }
 
     @Test
@@ -197,6 +227,31 @@ class TargetConnectionCheckServiceTest {
 
         // Then: the default-priority checker won, so the fallback never threw
         assertThat(result.status()).isEqualTo(TargetConnectionCheckResult.Status.UP);
+    }
+
+    @Test
+    void should_not_record_a_verdict_for_a_target_that_changed_while_it_was_probed() {
+        // Given: the target is edited (and its status invalidated) while the probe is running
+        givenTarget("http://localhost");
+        TargetConnectionCheckService service = serviceWith(new TargetConnectionChecker() {
+            @Override
+            public boolean canHandle(Target target) {
+                return true;
+            }
+
+            @Override
+            public void check(Target target, int timeoutMs) {
+                statusRepository.evict("DEFAULT", "target");
+            }
+        });
+
+        // When
+        TargetConnectionStatus returned = service.check("DEFAULT", "target", true);
+
+        // Then: the caller still gets its own answer...
+        assertThat(returned.result().status()).isEqualTo(TargetConnectionCheckResult.Status.UP);
+        // ...but the verdict describes the target as it was before the edit, so it must not come back
+        assertThat(statusRepository.find("DEFAULT", "target")).isEmpty();
     }
 
     @Test
@@ -392,6 +447,7 @@ class TargetConnectionCheckServiceTest {
     private static final class InMemoryStatusRepository implements TargetConnectionStatusRepository {
 
         private final java.util.Map<String, TargetConnectionStatus> statuses = new java.util.LinkedHashMap<>();
+        private final java.util.Map<String, Long> revisions = new java.util.LinkedHashMap<>();
 
         @Override
         public void save(TargetConnectionStatus status) {
@@ -410,12 +466,32 @@ class TargetConnectionCheckServiceTest {
 
         @Override
         public void evict(String environmentName, String targetName) {
-            statuses.remove(environmentName + "::" + targetName);
+            String key = environmentName + "::" + targetName;
+            revisions.merge(key, 1L, Long::sum);
+            statuses.remove(key);
         }
 
         @Override
         public void evictEnvironment(String environmentName) {
+            statuses.keySet().stream()
+                .filter(key -> key.startsWith(environmentName + "::"))
+                .toList()
+                .forEach(key -> revisions.merge(key, 1L, Long::sum));
             statuses.keySet().removeIf(key -> key.startsWith(environmentName + "::"));
+        }
+
+        @Override
+        public long revision(String environmentName, String targetName) {
+            return revisions.getOrDefault(environmentName + "::" + targetName, 0L);
+        }
+
+        @Override
+        public boolean saveIfUnchanged(TargetConnectionStatus status, long expectedRevision) {
+            if (revision(status.environmentName(), status.targetName()) != expectedRevision) {
+                return false;
+            }
+            save(status);
+            return true;
         }
     }
 }

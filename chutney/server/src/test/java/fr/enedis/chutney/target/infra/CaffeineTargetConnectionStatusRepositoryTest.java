@@ -53,6 +53,45 @@ class CaffeineTargetConnectionStatusRepositoryTest {
     }
 
     @Test
+    void should_record_a_status_when_nothing_invalidated_the_target_meanwhile() {
+        CaffeineTargetConnectionStatusRepository repository = repository(1, "HOURS");
+        long revision = repository.revision("DEFAULT", "target");
+
+        boolean saved = repository.saveIfUnchanged(status("DEFAULT", "target", TargetConnectionCheckResult.up(10)), revision);
+
+        assertThat(saved).isTrue();
+        assertThat(repository.find("DEFAULT", "target")).isPresent();
+    }
+
+    @Test
+    void should_refuse_a_status_whose_target_was_invalidated_while_it_was_being_probed() {
+        CaffeineTargetConnectionStatusRepository repository = repository(1, "HOURS");
+        long revision = repository.revision("DEFAULT", "target");
+
+        // the target is edited while the probe runs
+        repository.evict("DEFAULT", "target");
+
+        boolean saved = repository.saveIfUnchanged(status("DEFAULT", "target", TargetConnectionCheckResult.up(10)), revision);
+
+        assertThat(saved).isFalse();
+        assertThat(repository.find("DEFAULT", "target")).isEmpty();
+    }
+
+    @Test
+    void should_refuse_a_status_whose_environment_was_invalidated_while_it_was_being_probed() {
+        CaffeineTargetConnectionStatusRepository repository = repository(1, "HOURS");
+        repository.save(status("DEFAULT", "target", TargetConnectionCheckResult.up(10)));
+        long revision = repository.revision("DEFAULT", "target");
+
+        repository.evictEnvironment("DEFAULT");
+
+        boolean saved = repository.saveIfUnchanged(status("DEFAULT", "target", TargetConnectionCheckResult.up(20)), revision);
+
+        assertThat(saved).isFalse();
+        assertThat(repository.find("DEFAULT", "target")).isEmpty();
+    }
+
+    @Test
     void should_forget_a_status_once_its_time_to_live_has_passed() {
         // Given: a very short retention, so an old verdict is never presented as current
         CaffeineTargetConnectionStatusRepository repository = repository(1, "SECONDS");
