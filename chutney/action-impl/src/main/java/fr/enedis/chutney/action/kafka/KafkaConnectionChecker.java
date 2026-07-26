@@ -10,11 +10,11 @@ package fr.enedis.chutney.action.kafka;
 import static fr.enedis.chutney.action.kafka.KafkaClientFactoryHelper.filterMapFrom;
 import static fr.enedis.chutney.action.kafka.KafkaClientFactoryHelper.resolveBootStrapServerConfig;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
 import static org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG;
 import static org.apache.kafka.common.config.SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG;
 import static org.apache.kafka.common.config.SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG;
 
+import fr.enedis.chutney.action.common.TargetProtocols;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
 import java.util.HashMap;
@@ -37,18 +37,14 @@ import org.apache.kafka.clients.admin.AdminClientConfig;
  */
 public class KafkaConnectionChecker implements TargetConnectionChecker {
 
+    private static final Set<String> ALIASES = Set.of("kafka", "kafkas");
     private static final String BOOTSTRAP_SERVERS_PROPERTY = "bootstrap.servers";
-    private static final String PROTOCOL_PROPERTY = "protocol";
-    private static final String KAFKA_PROTOCOL = "kafka";
 
     @Override
     public boolean canHandle(Target target) {
-        if (KAFKA_PROTOCOL.equalsIgnoreCase(target.property(PROTOCOL_PROPERTY).orElse(""))) {
-            return true;
-        }
-        String uri = target.rawUri();
-        boolean kafkaScheme = uri != null && (startsWithIgnoreCase(uri, "kafka://") || startsWithIgnoreCase(uri, "kafkas://"));
-        return kafkaScheme || target.property(BOOTSTRAP_SERVERS_PROPERTY).isPresent();
+        return TargetProtocols.matches(target, ALIASES,
+            () -> TargetProtocols.uriStartsWith(target, "kafka://", "kafkas://")
+                || TargetProtocols.hasProperty(target, BOOTSTRAP_SERVERS_PROPERTY));
     }
 
     @Override

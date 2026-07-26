@@ -328,11 +328,13 @@ public class TargetConnectionCheckService {
             .replaceAll("(?i)(://)[^:/@\\s]+@", "$1***@")
             // quoted values: password="s3cr3t" / password:'s3cr3t' (the usual kafka/jaas rendering)
             .replaceAll("(?i)(" + secretKey + ")(\\s*[=:]\\s*)([\"'])[^\"']*\\3", "$1$2$3***$3")
-            // bare values, = or : separated
-            .replaceAll("(?i)(" + secretKey + ")(\\s*[=:]\\s*)[^\\s;,&\"']+", "$1$2***")
-            // http basic-auth headers — only what looks like encoded credential material, so prose
-            // such as "Bearer token has expired" keeps the word that explains the failure.
-            .replaceAll("(?i)\\b(basic|bearer)\\s+(?![A-Za-z]+\\b)([A-Za-z0-9+/=._-]{16,})", "$1 ***");
+            // bare values, = or : separated. The value runs to the next real delimiter rather than the
+            // first space, so a secret that happens to contain spaces does not leak its tail.
+            .replaceAll("(?i)(" + secretKey + ")(\\s*[=:]\\s*)[^;,&\"'\\r\\n]+", "$1$2***")
+            // http basic-auth headers. A 16+ char credential is redacted whatever it is made of; the
+            // length alone spares ordinary prose ("Bearer token has expired" — every word is shorter),
+            // so no entropy guess is needed and a pure-letter token cannot slip through.
+            .replaceAll("(?i)\\b(basic|bearer)\\s+([A-Za-z0-9+/=._-]{16,})", "$1 ***");
     }
 
 }

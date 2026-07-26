@@ -4,4 +4,7 @@ fr.enedis.chutney.action.ssh.check.SshConnectionChecker
 fr.enedis.chutney.action.amqp.AmqpConnectionChecker
 fr.enedis.chutney.action.kafka.KafkaConnectionChecker
 fr.enedis.chutney.action.mongo.MongoConnectionChecker
+fr.enedis.chutney.action.jms.JmsConnectionChecker
+fr.enedis.chutney.action.jakarta.JakartaConnectionChecker
+fr.enedis.chutney.action.radius.RadiusConnectionChecker
 fr.enedis.chutney.action.common.TcpConnectionChecker

@@ -57,6 +57,15 @@ class TargetConnectionFailureClassifierTest {
     }
 
     @Test
+    void should_prefer_a_specific_cause_over_a_generic_timeout_wrapper() {
+        // a driver wraps the real failure (unknown host) inside a generic timeout — the actionable
+        // reason is the host problem, not "timed out"
+        Throwable wrapped = new TimeoutException("Timed out while selecting a server");
+        wrapped.initCause(new UnknownHostException("db.does-not-exist"));
+        assertThat(TargetConnectionFailureClassifier.classify(wrapped)).isEqualTo(Reason.UNKNOWN_HOST);
+    }
+
+    @Test
     void should_fall_back_to_unreachable_for_an_unrecognized_error() {
         assertThat(TargetConnectionFailureClassifier.classify(new RuntimeException("boom"))).isEqualTo(Reason.UNREACHABLE);
     }

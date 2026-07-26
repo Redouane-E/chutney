@@ -7,11 +7,11 @@
 
 package fr.enedis.chutney.action.ssh.check;
 
-import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
-
+import fr.enedis.chutney.action.common.TargetProtocols;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
 import fr.enedis.chutney.action.ssh.SshClientFactory;
+import java.util.Set;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.FactoryManager;
@@ -24,10 +24,18 @@ import org.apache.sshd.common.FactoryManager;
  */
 public class SshConnectionChecker implements TargetConnectionChecker {
 
+    private static final Set<String> ALIASES = Set.of("ssh", "sftp", "scp");
+
+    /**
+     * Recognised by an {@code ssh://} url or a {@code privateKey} property (only ssh targets carry
+     * one). A password-only ssh target written as {@code tcp://host:port} is indistinguishable from a
+     * plain tcp target, so it falls back to a reachability check unless tagged with
+     * {@code protocol: ssh}.
+     */
     @Override
     public boolean canHandle(Target target) {
-        String uri = target.rawUri();
-        return uri != null && startsWithIgnoreCase(uri, "ssh://");
+        return TargetProtocols.matches(target, ALIASES,
+            () -> TargetProtocols.uriStartsWith(target, "ssh://") || TargetProtocols.hasProperty(target, "privateKey"));
     }
 
     @Override

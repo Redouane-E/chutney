@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
+import fr.enedis.chutney.action.TestTarget;
 import fr.enedis.chutney.action.spi.injectable.Target;
 import fr.enedis.chutney.action.ssh.fakes.HardcodedTarget;
 import java.util.Map;
@@ -46,8 +47,31 @@ class SshConnectionCheckerTest {
     class CanHandle {
 
         @Test
-        void should_handle_ssh_scheme_only() {
+        void should_handle_an_ssh_scheme() {
             assertThat(checker.canHandle(new HardcodedTarget(fakeSshServer, Map.of()))).isTrue();
+        }
+
+        @Test
+        void should_handle_a_target_carrying_a_private_key() {
+            // a private-key property is unique to ssh, so it identifies even a tcp:// ssh target
+            Target target = TestTarget.TestTargetBuilder.builder()
+                .withTargetId("ssh").withUrl("tcp://host:22").withProperty("privateKey", "/keys/id_rsa").build();
+            assertThat(checker.canHandle(target)).isTrue();
+        }
+
+        @Test
+        void should_handle_a_target_explicitly_tagged_as_ssh() {
+            Target target = TestTarget.TestTargetBuilder.builder()
+                .withTargetId("ssh").withUrl("tcp://host:22").withProperty("protocol", "ssh").build();
+            assertThat(checker.canHandle(target)).isTrue();
+        }
+
+        @Test
+        void should_not_handle_a_password_only_tcp_target() {
+            // indistinguishable from a plain tcp target — falls back to a reachability check
+            Target target = TestTarget.TestTargetBuilder.builder()
+                .withTargetId("x").withUrl("tcp://host:22").withProperty("password", "p").build();
+            assertThat(checker.canHandle(target)).isFalse();
         }
     }
 

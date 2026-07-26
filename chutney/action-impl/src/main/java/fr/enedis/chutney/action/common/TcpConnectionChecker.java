@@ -7,13 +7,13 @@
 
 package fr.enedis.chutney.action.common;
 
-import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
 
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Set;
 
 /**
  * Generic reachability probe for {@code tcp://host:port} targets — Chutney's protocol-agnostic
@@ -24,10 +24,11 @@ import java.net.Socket;
  */
 public class TcpConnectionChecker implements TargetConnectionChecker {
 
+    private static final Set<String> ALIASES = Set.of("tcp", "tcps");
+
     @Override
     public boolean canHandle(Target target) {
-        String uri = target.rawUri();
-        return uri != null && (startsWithIgnoreCase(uri, "tcp://") || startsWithIgnoreCase(uri, "tcps://"));
+        return TargetProtocols.matches(target, ALIASES, () -> TargetProtocols.uriStartsWith(target, "tcp://", "tcps://"));
     }
 
     @Override

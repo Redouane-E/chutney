@@ -7,9 +7,8 @@
 
 package fr.enedis.chutney.action.mongo;
 
-import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
-
 import com.mongodb.client.MongoDatabase;
+import fr.enedis.chutney.action.common.TargetProtocols;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
 import fr.enedis.chutney.tools.CloseableResource;
@@ -17,6 +16,7 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Probes a {@code mongodb} target, reusing {@link DefaultMongoDatabaseFactory} to build the client
@@ -29,12 +29,19 @@ import java.util.Optional;
  */
 public class MongoConnectionChecker implements TargetConnectionChecker {
 
+    private static final Set<String> ALIASES = Set.of("mongo", "mongodb");
     private static final String OPTION_PREFIX = "connectionOptions.";
 
+    /**
+     * A mongo target is recognised by the {@code databaseName} property the mongo actions require (or
+     * a mongo url), not solely by scheme — the docs show {@code mongo://} while the driver builds a
+     * {@code mongodb://} string from host and port.
+     */
     @Override
     public boolean canHandle(Target target) {
-        String uri = target.rawUri();
-        return uri != null && (startsWithIgnoreCase(uri, "mongodb://") || startsWithIgnoreCase(uri, "mongodb+srv://"));
+        return TargetProtocols.matches(target, ALIASES,
+            () -> TargetProtocols.hasProperty(target, "databaseName")
+                || TargetProtocols.uriStartsWith(target, "mongodb://", "mongodb+srv://", "mongo://"));
     }
 
     @Override

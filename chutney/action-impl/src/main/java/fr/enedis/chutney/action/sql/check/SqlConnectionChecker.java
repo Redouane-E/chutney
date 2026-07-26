@@ -7,14 +7,15 @@
 
 package fr.enedis.chutney.action.sql.check;
 
-import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import fr.enedis.chutney.action.common.TargetProtocols;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
 import java.sql.Connection;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Probes a {@code jdbc:} target by opening a single pooled connection and validating it.
@@ -25,12 +26,20 @@ import java.util.Properties;
  */
 public class SqlConnectionChecker implements TargetConnectionChecker {
 
+    private static final Set<String> ALIASES = Set.of(
+        "jdbc", "sql", "database", "db",
+        "postgresql", "postgres", "mysql", "mariadb", "oracle", "sqlserver", "mssql", "db2", "h2", "sqlite");
     private static final int MIN_HIKARI_TIMEOUT_MS = 250;
 
+    /**
+     * A sql target is recognised by the {@code jdbcUrl} property the sql action requires, not by its
+     * url scheme: Chutney documents these targets as {@code tcp://host:port} with the real connection
+     * string in that property.
+     */
     @Override
     public boolean canHandle(Target target) {
-        String uri = target.rawUri();
-        return uri != null && startsWithIgnoreCase(uri, "jdbc:");
+        return TargetProtocols.matches(target, ALIASES,
+            () -> TargetProtocols.hasProperty(target, "jdbcUrl") || TargetProtocols.uriStartsWith(target, "jdbc:"));
     }
 
     @Override

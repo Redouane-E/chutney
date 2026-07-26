@@ -7,13 +7,14 @@
 
 package fr.enedis.chutney.action.amqp;
 
-import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import fr.enedis.chutney.action.common.TargetProtocols;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
+import java.util.Set;
 
 /**
  * Probes an {@code amqp(s)} target by opening a connection and a channel, reusing the same
@@ -24,10 +25,11 @@ import fr.enedis.chutney.action.spi.injectable.Target;
  */
 public class AmqpConnectionChecker implements TargetConnectionChecker {
 
+    private static final Set<String> ALIASES = Set.of("amqp", "amqps", "rabbit", "rabbitmq");
+
     @Override
     public boolean canHandle(Target target) {
-        String uri = target.rawUri();
-        return uri != null && (startsWithIgnoreCase(uri, "amqp://") || startsWithIgnoreCase(uri, "amqps://"));
+        return TargetProtocols.matches(target, ALIASES, () -> TargetProtocols.uriStartsWith(target, "amqp://", "amqps://"));
     }
 
     @Override

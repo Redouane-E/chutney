@@ -51,9 +51,22 @@ class MongoConnectionCheckerIntegrationTest {
         }
 
         @Test
-        void should_not_handle_other_schemes() {
+        void should_handle_the_documented_mongo_scheme() {
+            // docs use mongo:// even though the driver builds a mongodb:// string
+            assertThat(checker.canHandle(url("mongo://my.mongo.base:27017"))).isTrue();
+        }
+
+        @Test
+        void should_handle_a_target_with_a_databaseName_property() {
+            Target target = TestTarget.TestTargetBuilder.builder()
+                .withTargetId("mongo").withUrl("tcp://mongo:27017").withProperty("databaseName", "test").build();
+            assertThat(checker.canHandle(target)).isTrue();
+        }
+
+        @Test
+        void should_not_handle_a_plain_or_other_target() {
             assertThat(checker.canHandle(url("http://localhost"))).isFalse();
-            assertThat(checker.canHandle(url("amqp://localhost"))).isFalse();
+            assertThat(checker.canHandle(url("tcp://localhost:9092"))).isFalse();
         }
     }
 

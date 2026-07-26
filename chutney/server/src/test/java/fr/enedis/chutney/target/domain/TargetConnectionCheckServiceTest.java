@@ -140,6 +140,30 @@ class TargetConnectionCheckServiceTest {
     }
 
     @Test
+    void should_redact_a_secret_that_contains_spaces_without_leaking_its_tail() {
+        givenTarget("http://localhost");
+        TargetConnectionCheckService service = serviceWith(checker(true,
+            new IllegalStateException("rejected credentials: password: hunter two three; host=db")));
+
+        String detail = service.check("DEFAULT", "target", true).result().detail();
+
+        assertThat(detail).doesNotContain("hunter").doesNotContain("two three");
+        // a following non-secret field must survive
+        assertThat(detail).contains("host=db");
+    }
+
+    @Test
+    void should_redact_an_all_letter_bearer_token() {
+        givenTarget("http://localhost");
+        TargetConnectionCheckService service = serviceWith(checker(true,
+            new IllegalStateException("rejected Authorization: Bearer abcdefghijklmnopqrst")));
+
+        String detail = service.check("DEFAULT", "target", true).result().detail();
+
+        assertThat(detail).doesNotContain("abcdefghijklmnopqrst");
+    }
+
+    @Test
     void should_describe_the_same_failure_it_named() {
         // Given: a driver wrapping an authentication failure over a lower-level connect error
         givenTarget("jdbc:postgresql://localhost/db");

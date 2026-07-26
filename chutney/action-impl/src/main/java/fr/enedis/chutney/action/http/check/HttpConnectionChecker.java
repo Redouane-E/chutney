@@ -9,12 +9,13 @@ package fr.enedis.chutney.action.http.check;
 
 import static fr.enedis.chutney.action.common.SecurityUtils.buildSslContext;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.commons.lang3.StringUtils.startsWithIgnoreCase;
 
+import fr.enedis.chutney.action.common.TargetProtocols;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
 import org.apache.hc.client5.http.classic.methods.HttpHead;
@@ -49,10 +50,11 @@ import org.apache.hc.core5.util.Timeout;
  */
 public class HttpConnectionChecker implements TargetConnectionChecker {
 
+    private static final Set<String> ALIASES = Set.of("http", "https");
+
     @Override
     public boolean canHandle(Target target) {
-        String uri = target.rawUri();
-        return uri != null && (startsWithIgnoreCase(uri, "http://") || startsWithIgnoreCase(uri, "https://"));
+        return TargetProtocols.matches(target, ALIASES, () -> TargetProtocols.uriStartsWith(target, "http://", "https://"));
     }
 
     @Override

@@ -11,6 +11,8 @@ import fr.enedis.chutney.target.domain.TargetConnectionCheckResult.Reason;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Maps the exception raised by a {@code TargetConnectionChecker} to a human-actionable
@@ -26,14 +28,18 @@ final class TargetConnectionFailureClassifier {
     private TargetConnectionFailureClassifier() {
     }
 
+    /**
+     * Ranks reasons from most to least specific. A driver often wraps the real failure — a refused
+     * connection or an unknown host — inside a generic timeout, so a more specific reason found deeper
+     * in the chain is preferred over a timeout or a bare "unreachable" nearer the surface.
+     */
+    private static final List<Reason> SPECIFICITY = List.of(
+        Reason.AUTH_FAILED, Reason.TLS_ERROR, Reason.UNKNOWN_HOST, Reason.CONNECTION_REFUSED, Reason.TIMEOUT);
+
     static Reason classify(Throwable throwable) {
-        for (Throwable cause : causeChain(throwable)) {
-            Reason reason = reasonOf(cause);
-            if (reason != null) {
-                return reason;
-            }
-        }
-        return Reason.UNREACHABLE;
+        return mostSpecific(throwable)
+            .map(Map.Entry::getValue)
+            .orElse(Reason.UNREACHABLE);
     }
 
     /**
@@ -41,13 +47,24 @@ final class TargetConnectionFailureClassifier {
      * describes the same failure as the headline. Falls back to the deepest cause.
      */
     static Throwable classifiedCause(Throwable throwable) {
-        List<Throwable> chain = causeChain(throwable);
-        for (Throwable cause : chain) {
-            if (reasonOf(cause) != null) {
-                return cause;
+        return mostSpecific(throwable)
+            .map(Map.Entry::getKey)
+            .orElseGet(() -> {
+                List<Throwable> chain = causeChain(throwable);
+                return chain.isEmpty() ? throwable : chain.get(chain.size() - 1);
+            });
+    }
+
+    /** The (cause, reason) in the chain whose reason is the most specific; empty if none match. */
+    private static Optional<Map.Entry<Throwable, Reason>> mostSpecific(Throwable throwable) {
+        Map.Entry<Throwable, Reason> best = null;
+        for (Throwable cause : causeChain(throwable)) {
+            Reason reason = reasonOf(cause);
+            if (reason != null && (best == null || SPECIFICITY.indexOf(reason) < SPECIFICITY.indexOf(best.getValue()))) {
+                best = Map.entry(cause, reason);
             }
         }
-        return chain.isEmpty() ? throwable : chain.get(chain.size() - 1);
+        return Optional.ofNullable(best);
     }
 
     /**
