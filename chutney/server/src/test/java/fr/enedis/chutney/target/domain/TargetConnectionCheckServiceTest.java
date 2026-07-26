@@ -153,6 +153,32 @@ class TargetConnectionCheckServiceTest {
     }
 
     @Test
+    void should_redact_a_space_separated_secret_that_has_no_key_value_separator() {
+        // some drivers report the secret with only a space, not a '='/':' — "...with password p@ss123"
+        givenTarget("http://localhost");
+        TargetConnectionCheckService service = serviceWith(checker(true,
+            new IllegalStateException("login rejected using password p@ss123 for user svc")));
+
+        String detail = service.check("DEFAULT", "target", true).result().detail();
+
+        assertThat(detail).doesNotContain("p@ss123");
+        // only the credential-looking token is hidden; the words around it survive
+        assertThat(detail).contains("for user svc");
+    }
+
+    @Test
+    void should_not_blank_out_ordinary_words_that_follow_a_secret_keyword() {
+        // "password authentication failed" is the usual database wording — none of it is a credential
+        givenTarget("http://localhost");
+        TargetConnectionCheckService service = serviceWith(checker(true,
+            new IllegalStateException("FATAL: password authentication failed for user app")));
+
+        String detail = service.check("DEFAULT", "target", true).result().detail();
+
+        assertThat(detail).contains("password authentication failed for user app");
+    }
+
+    @Test
     void should_redact_an_all_letter_bearer_token() {
         givenTarget("http://localhost");
         TargetConnectionCheckService service = serviceWith(checker(true,

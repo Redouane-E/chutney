@@ -331,6 +331,10 @@ public class TargetConnectionCheckService {
             // bare values, = or : separated. The value runs to the next real delimiter rather than the
             // first space, so a secret that happens to contain spaces does not leak its tail.
             .replaceAll("(?i)(" + secretKey + ")(\\s*[=:]\\s*)[^;,&\"'\\r\\n]+", "$1$2***")
+            // a secret separated from its key only by whitespace ("...failed with password p@ss123").
+            // The value must look credential-like — carry a digit or a symbol — so ordinary prose such
+            // as "password authentication failed" stays readable rather than being blanked out.
+            .replaceAll("(?i)\\b(" + secretKey + ")\\s+([A-Za-z0-9][^\\s;,&\"']*[0-9@#$%^&*_./+!?~-][^\\s;,&\"']*)", "$1 ***")
             // http basic-auth headers. A 16+ char credential is redacted whatever it is made of; the
             // length alone spares ordinary prose ("Bearer token has expired" — every word is shorter),
             // so no entropy guess is needed and a pure-letter token cannot slip through.

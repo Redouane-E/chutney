@@ -55,6 +55,9 @@ public class MongoConnectionChecker implements TargetConnectionChecker {
         Map<String, String> extraOptions = new LinkedHashMap<>();
         putIfAbsent(target, extraOptions, OPTION_PREFIX + "serverSelectionTimeoutMS", timeoutMs);
         putIfAbsent(target, extraOptions, OPTION_PREFIX + "connectTimeoutMS", timeoutMs);
+        // serverSelection/connect bound reaching a node; socketTimeout also bounds the read, so a node
+        // that accepts the connection but never answers the query cannot hang the probe worker.
+        putIfAbsent(target, extraOptions, OPTION_PREFIX + "socketTimeoutMS", timeoutMs);
         return extraOptions.isEmpty() ? target : new TimeoutBoundedTarget(target, extraOptions);
     }
 

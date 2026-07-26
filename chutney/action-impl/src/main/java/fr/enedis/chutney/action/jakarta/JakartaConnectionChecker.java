@@ -7,6 +7,7 @@
 
 package fr.enedis.chutney.action.jakarta;
 
+import fr.enedis.chutney.action.common.BrokerConnectionUrls;
 import fr.enedis.chutney.action.common.TargetProtocols;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
@@ -42,7 +43,9 @@ public class JakartaConnectionChecker implements TargetConnectionChecker {
     @Override
     public void check(Target target, int timeoutMs) throws Exception {
         java.util.Hashtable<String, String> environment = new java.util.Hashtable<>();
-        environment.put(Context.PROVIDER_URL, target.uri().toString());
+        // Bound the transport's blocking calls so a probe of an unreachable broker fails fast instead
+        // of parking this worker thread on Artemis' generous default call timeout.
+        environment.put(Context.PROVIDER_URL, BrokerConnectionUrls.boundedArtemis(target.uri().toString(), timeoutMs));
         environment.putAll(target.prefixedProperties("java.naming."));
         environment.putAll(target.prefixedProperties("jndi.", true));
 

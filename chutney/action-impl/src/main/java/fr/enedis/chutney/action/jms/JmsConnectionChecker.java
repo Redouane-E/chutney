@@ -7,6 +7,7 @@
 
 package fr.enedis.chutney.action.jms;
 
+import fr.enedis.chutney.action.common.BrokerConnectionUrls;
 import fr.enedis.chutney.action.common.TargetProtocols;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
@@ -49,7 +50,9 @@ public class JmsConnectionChecker implements TargetConnectionChecker {
     @Override
     public void check(Target target, int timeoutMs) throws Exception {
         java.util.Hashtable<String, String> environment = new java.util.Hashtable<>();
-        environment.put(Context.PROVIDER_URL, target.uri().toString());
+        // Bound the transport so a probe of an unreachable broker fails fast instead of parking this
+        // worker thread — a classic failover: url would otherwise reconnect for ever.
+        environment.put(Context.PROVIDER_URL, BrokerConnectionUrls.boundedActiveMqClassic(target.uri().toString(), timeoutMs));
         environment.putAll(target.prefixedProperties("java.naming."));
         environment.putAll(target.prefixedProperties("jndi.", true));
 
