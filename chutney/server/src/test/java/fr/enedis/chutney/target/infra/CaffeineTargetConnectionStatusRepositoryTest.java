@@ -92,6 +92,22 @@ class CaffeineTargetConnectionStatusRepositoryTest {
     }
 
     @Test
+    void should_refuse_a_first_ever_probe_saved_after_its_environment_was_invalidated() {
+        // A target probed for the very first time has no stored status and no per-target revision to
+        // bump, so only an environment-level revision can stop its in-flight probe from resurrecting a
+        // verdict for an environment that was deleted or renamed while the probe was running.
+        CaffeineTargetConnectionStatusRepository repository = repository(1, "HOURS");
+        long revision = repository.revision("DEFAULT", "never-probed");
+
+        repository.evictEnvironment("DEFAULT");
+
+        boolean saved = repository.saveIfUnchanged(status("DEFAULT", "never-probed", TargetConnectionCheckResult.up(10)), revision);
+
+        assertThat(saved).isFalse();
+        assertThat(repository.find("DEFAULT", "never-probed")).isEmpty();
+    }
+
+    @Test
     void should_forget_a_status_once_its_time_to_live_has_passed() {
         // Given: a very short retention, so an old verdict is never presented as current
         CaffeineTargetConnectionStatusRepository repository = repository(1, "SECONDS");

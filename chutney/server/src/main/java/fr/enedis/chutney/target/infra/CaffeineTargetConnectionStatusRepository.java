@@ -36,6 +36,7 @@ public class CaffeineTargetConnectionStatusRepository implements TargetConnectio
 
     private final Cache<Key, TargetConnectionStatus> statuses;
     private final Cache<Key, Long> revisions;
+    private final Cache<String, Long> environmentRevisions;
 
     public CaffeineTargetConnectionStatusRepository(
         @Value(TARGET_CONNECTION_STATUS_TTL_VALUE_SPRING_VALUE) Integer ttlValue,
@@ -46,6 +47,11 @@ public class CaffeineTargetConnectionStatusRepository implements TargetConnectio
             .build();
         // Same retention: a revision only has to outlive a probe, which is orders of magnitude shorter.
         this.revisions = Caffeine.newBuilder()
+            .expireAfterWrite(ttlValue, TimeUnit.valueOf(ttlUnit))
+            .build();
+        // A per-environment revision, so evicting a whole environment invalidates even targets that
+        // were never probed (and therefore have no per-target revision of their own to bump).
+        this.environmentRevisions = Caffeine.newBuilder()
             .expireAfterWrite(ttlValue, TimeUnit.valueOf(ttlUnit))
             .build();
     }
@@ -84,10 +90,12 @@ public class CaffeineTargetConnectionStatusRepository implements TargetConnectio
 
     @Override
     public void evictEnvironment(String environmentName) {
-        statuses.asMap().keySet().stream()
-            .filter(key -> key.environmentName().equals(environmentName))
-            .toList()
-            .forEach(this::bump);
+        // Bump the environment revision *before* removing the statuses, and bump the whole environment
+        // rather than each existing key: a target being probed for the first time has no per-target
+        // revision to bump, so only an environment-level bump can stop that in-flight probe from saving
+        // a now-stale verdict for an environment that was just deleted or renamed. Any status a probe
+        // that started earlier manages to write before this runs is then removed just below.
+        environmentRevisions.asMap().merge(environmentName, 1L, Long::sum);
         statuses.asMap().keySet().removeIf(key -> key.environmentName().equals(environmentName));
     }
 
@@ -96,8 +104,11 @@ public class CaffeineTargetConnectionStatusRepository implements TargetConnectio
         return revision(new Key(environmentName, targetName));
     }
 
+    /** The per-target and per-environment revisions combined: any eviction of either raises it. */
     private long revision(Key key) {
-        return Optional.ofNullable(revisions.getIfPresent(key)).orElse(0L);
+        long perTarget = Optional.ofNullable(revisions.getIfPresent(key)).orElse(0L);
+        long perEnvironment = Optional.ofNullable(environmentRevisions.getIfPresent(key.environmentName())).orElse(0L);
+        return perTarget + perEnvironment;
     }
 
     /** Bumped before the status is invalidated, so an in-flight probe can never win the race. */
