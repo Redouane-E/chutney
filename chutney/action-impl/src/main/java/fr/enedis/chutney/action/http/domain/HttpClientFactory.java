@@ -11,7 +11,6 @@ package fr.enedis.chutney.action.http.domain;
 import static fr.enedis.chutney.action.common.SecurityUtils.buildSslContext;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
-import static java.util.Optional.ofNullable;
 
 import fr.enedis.chutney.action.spi.injectable.Logger;
 import fr.enedis.chutney.action.spi.injectable.Target;
@@ -104,18 +103,30 @@ public class HttpClientFactory {
     }
 
     private static Optional<HttpRoutePlanner> getProxyConfiguration(Logger logger, Target target) {
+        Optional<HttpRoutePlanner> routePlanner = proxyRoutePlanner(target);
+        if (isTargetProxySet(target)) {
+            String proxy = target.property(PROXY_PROPERTY).get();
+            if (routePlanner.isPresent()) {
+                logger.info("Proxy used: [" + proxy + "]");
+            } else {
+                logger.error("Malformed proxy url [" + proxy + "]");
+            }
+        }
+        return routePlanner;
+    }
+
+    /**
+     * The route planner a target implies — its {@code proxy} property, or the JVM system proxy — so a
+     * connectivity probe reaches the target through the very same hop the http actions use. Exposed so
+     * {@code HttpConnectionChecker} shares this logic rather than re-deriving it.
+     */
+    public static Optional<HttpRoutePlanner> proxyRoutePlanner(Target target) {
         if (isTargetProxySet(target)) {
             try {
-                final String proxy = target.property(PROXY_PROPERTY).orElseThrow();
-                final URL url = new URL(proxy);
-                final String host = url.getHost();
-                final String scheme = url.getProtocol();
-                final int port = ofNullable(url.getPort()).orElse(3128);
-                final HttpHost httpProxy = new HttpHost(scheme, host, port);
-                logger.info("Proxy used: [" + httpProxy + "]");
-                return of(new DefaultProxyRoutePlanner(httpProxy));
+                final URL url = new URL(target.property(PROXY_PROPERTY).orElseThrow());
+                final int port = url.getPort() == -1 ? 3128 : url.getPort();
+                return of(new DefaultProxyRoutePlanner(new HttpHost(url.getProtocol(), url.getHost(), port)));
             } catch (MalformedURLException e) {
-                logger.error("Malformed proxy url [" + target.property(PROXY_PROPERTY).get() + "]" + e.getMessage());
                 return empty();
             }
         } else if (isSystemProxySet()) {

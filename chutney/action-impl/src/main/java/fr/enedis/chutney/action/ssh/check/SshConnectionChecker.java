@@ -7,20 +7,22 @@
 
 package fr.enedis.chutney.action.ssh.check;
 
+import fr.enedis.chutney.action.common.SilentLogger;
 import fr.enedis.chutney.action.common.TargetProtocols;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
-import fr.enedis.chutney.action.ssh.SshClientFactory;
+import fr.enedis.chutney.action.ssh.Connection;
+import fr.enedis.chutney.action.ssh.sshj.SshJClient;
+import java.util.List;
 import java.util.Set;
-import org.apache.sshd.client.SshClient;
-import org.apache.sshd.client.session.ClientSession;
-import org.apache.sshd.common.FactoryManager;
 
 /**
- * Probes an {@code ssh} target by opening and authenticating a client session (password or private
- * key), reusing {@link SshClientFactory#buildSSHClientSession(Target, long)}. Reaching the end of a
- * successful call means the TCP connection and authentication both succeeded; the session and its
- * underlying client are released afterwards.
+ * Probes an {@code ssh} target by connecting and authenticating exactly as the ssh command action
+ * does — through the {@link SshJClient} sshj path, so the target's whole jump-host chain
+ * ({@code proxy}, {@code proxy_1..N} with their own credentials) is traversed rather than bypassed.
+ * A target reachable only through a bastion is therefore probed the same way it is really used, and a
+ * successful connect+authenticate (over the last hop) is what proves it reachable. The connect is
+ * bounded by the probe timeout so an unreachable host fails fast, and every hop is disconnected after.
  */
 public class SshConnectionChecker implements TargetConnectionChecker {
 
@@ -40,15 +42,8 @@ public class SshConnectionChecker implements TargetConnectionChecker {
 
     @Override
     public void check(Target target, int timeoutMs) throws Exception {
-        ClientSession session = SshClientFactory.buildSSHClientSession(target, timeoutMs);
-        FactoryManager factoryManager = session.getFactoryManager();
-        try {
-            // Connected and authenticated: the target is reachable.
-        } finally {
-            session.close(true);
-            if (factoryManager instanceof SshClient client) {
-                client.stop();
-            }
-        }
+        Connection connection = Connection.from(target);
+        List<Connection> proxies = Connection.tunnelFrom(target);
+        new SshJClient(connection, proxies, false, new SilentLogger()).connectAndAuthenticate(timeoutMs);
     }
 }

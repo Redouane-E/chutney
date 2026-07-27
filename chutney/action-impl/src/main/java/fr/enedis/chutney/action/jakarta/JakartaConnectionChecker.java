@@ -8,6 +8,7 @@
 package fr.enedis.chutney.action.jakarta;
 
 import fr.enedis.chutney.action.common.BrokerConnectionUrls;
+import fr.enedis.chutney.action.common.JmsSslProperties;
 import fr.enedis.chutney.action.common.TargetProtocols;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
@@ -48,6 +49,8 @@ public class JakartaConnectionChecker implements TargetConnectionChecker {
         environment.put(Context.PROVIDER_URL, BrokerConnectionUrls.boundedArtemis(target.uri().toString(), timeoutMs));
         environment.putAll(target.prefixedProperties("java.naming."));
         environment.putAll(target.prefixedProperties("jndi.", true));
+        // Same TLS material the Jakarta actions configure, so an SSL broker is reached, not falsely DOWN.
+        JmsSslProperties.putInto(environment, target);
 
         Context context = new InitialContext(environment);
         try {

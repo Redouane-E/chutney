@@ -43,8 +43,12 @@ public class RadiusConnectionChecker implements TargetConnectionChecker {
     public void check(Target target, int timeoutMs) throws Exception {
         RadiusClient client = createRadiusClient(target);
         try {
-            client.setSocketTimeout(timeoutMs);
-            client.setRetryCount(1);
+            // Keep the actions' retransmission behaviour (tinyradius default: 3 attempts) so a single
+            // dropped UDP datagram — normal on a lossy network — does not read as unreachable. The
+            // attempts share the probe budget instead of the library's generous 3s-per-attempt default.
+            int retries = 3;
+            client.setRetryCount(retries);
+            client.setSocketTimeout(Math.max(1, timeoutMs / retries));
             // A probe Access-Request with a throwaway password: the client library rejects an empty
             // one, and the value is irrelevant — the server's reply (Accept/Reject, or a shared-secret
             // mismatch surfacing as an exception) proves reachability; no reply means unreachable.

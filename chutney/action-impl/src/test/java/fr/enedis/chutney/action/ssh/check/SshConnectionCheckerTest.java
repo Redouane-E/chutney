@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import fr.enedis.chutney.action.TestTarget;
 import fr.enedis.chutney.action.spi.injectable.Target;
+import fr.enedis.chutney.action.ssh.fakes.FakeServerSsh;
 import fr.enedis.chutney.action.ssh.fakes.HardcodedTarget;
 import java.util.Map;
 import org.apache.sshd.server.SshServer;
@@ -98,6 +99,39 @@ class SshConnectionCheckerTest {
 
             // When / Then
             assertThatThrownBy(() -> checker.check(target, 5000)).isInstanceOf(Exception.class);
+        }
+
+        @Test
+        void should_reach_the_target_through_a_jump_host() throws Exception {
+            // A target reachable only via a bastion must be probed through that bastion, exactly as the
+            // ssh action connects — not by a direct connection that would report a false DOWN.
+            SshServer proxy = FakeServerSsh.buildLocalProxy("proxySshUser", "proxySshPassword");
+            try {
+                proxy.start();
+                String proxyUrl = "ssh://" + proxy.getHost() + ":" + proxy.getPort();
+                Target target = buildTargetWithPassword(fakeSshServer, proxyUrl, "proxySshUser", "proxySshPassword");
+
+                Throwable thrown = catchThrowable(() -> checker.check(target, 5000));
+
+                assertThat(thrown).isNull();
+            } finally {
+                proxy.stop();
+            }
+        }
+
+        @Test
+        void should_fail_when_the_jump_host_credentials_are_wrong() throws Exception {
+            // the probe authenticates each hop the way the action does — a bad bastion password fails it
+            SshServer proxy = FakeServerSsh.buildLocalProxy("proxySshUser", "proxySshPassword");
+            try {
+                proxy.start();
+                String proxyUrl = "ssh://" + proxy.getHost() + ":" + proxy.getPort();
+                Target target = buildTargetWithPassword(fakeSshServer, proxyUrl, "proxySshUser", "wrong-proxy-password");
+
+                assertThatThrownBy(() -> checker.check(target, 5000)).isInstanceOf(Exception.class);
+            } finally {
+                proxy.stop();
+            }
         }
     }
 }

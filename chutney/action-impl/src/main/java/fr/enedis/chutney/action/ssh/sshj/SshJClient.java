@@ -48,39 +48,67 @@ public class SshJClient implements SshClient {
     @Override
     public CommandResult execute(Command command) throws IOException {
         SSHClient sshClient = new SSHClient();
-        List<SSHClient> tunnel = connect(sshClient);
+        List<SSHClient> tunnel = connect(sshClient, null);
         try {
             authenticate(sshClient, connection);
             return executeCommand(sshClient, command);
         } finally {
-            sshClient.disconnect();
-            tunnel.reversed().forEach(t -> {
-                try {
-                    t.disconnect();
-                } catch (IOException e) {
-                    logger.error("Error disconnecting tunnel : " + e.getMessage());
-                }
-            });
+            disconnect(sshClient, tunnel);
         }
     }
 
-    private List<SSHClient> connect(SSHClient client) throws IOException {
+    /**
+     * Connectivity probe: connect through the full proxy/jump-host chain and authenticate the target,
+     * then tear everything down — no command executed. Reuses the same {@link #connect}/{@link #tunnel}/
+     * {@link #authenticate} path {@link #execute} uses, so a probe honours the jump hosts and
+     * credentials the real action would. {@code connectTimeoutMs} bounds every hop's connect and read
+     * so an unreachable host fails fast instead of parking the calling thread. Throws if any hop or the
+     * final authentication fails.
+     */
+    public void connectAndAuthenticate(int connectTimeoutMs) throws IOException {
+        SSHClient sshClient = new SSHClient();
+        List<SSHClient> tunnel = connect(sshClient, connectTimeoutMs);
+        try {
+            authenticate(sshClient, connection);
+        } finally {
+            disconnect(sshClient, tunnel);
+        }
+    }
+
+    private void disconnect(SSHClient sshClient, List<SSHClient> tunnel) {
+        try {
+            sshClient.disconnect();
+        } catch (IOException e) {
+            logger.error("Error disconnecting : " + e.getMessage());
+        }
+        disconnectQuietly(tunnel);
+    }
+
+    private List<SSHClient> connect(SSHClient client, Integer connectTimeoutMs) throws IOException {
+        applyTimeouts(client, connectTimeoutMs);
         client.addHostKeyVerifier(alwaysVerified()); // TODO : Add best way host key verifier to really check.
-        List<SSHClient> tunnel = tunnel();
-        if (!tunnel.isEmpty()) {
-            client.connectVia(tunnel.getLast().newDirectConnection(connection.serverHost, connection.serverPort));
-        } else {
-            client.connect(connection.serverHost, connection.serverPort);
+        List<SSHClient> tunnel = tunnel(connectTimeoutMs);
+        try {
+            if (!tunnel.isEmpty()) {
+                client.connectVia(tunnel.getLast().newDirectConnection(connection.serverHost, connection.serverPort));
+            } else {
+                client.connect(connection.serverHost, connection.serverPort);
+            }
+        } catch (IOException e) {
+            // the target hop failed after the tunnel was up — release the tunnel before propagating
+            disconnectQuietly(tunnel);
+            throw e;
         }
         return tunnel;
     }
 
-    private List<SSHClient> tunnel() {
+    private List<SSHClient> tunnel(Integer connectTimeoutMs) throws IOException {
         List<SSHClient> result = new ArrayList<>();
-        for (int i = 0; i < proxyConnections.size(); i++) {
-            Connection pc = proxyConnections.get(i);
-            SSHClient sshClient = new SSHClient();
-            try {
+        try {
+            for (int i = 0; i < proxyConnections.size(); i++) {
+                Connection pc = proxyConnections.get(i);
+                SSHClient sshClient = new SSHClient();
+                applyTimeouts(sshClient, connectTimeoutMs);
                 sshClient.addHostKeyVerifier(alwaysVerified()); // TODO : Add best way host key verifier to really check.
                 if (i == 0) {
                     sshClient.connect(pc.serverHost, pc.serverPort);
@@ -88,12 +116,31 @@ public class SshJClient implements SshClient {
                     sshClient.connectVia(result.getLast().newDirectConnection(pc.serverHost, pc.serverPort));
                 }
                 authenticate(sshClient, pc);
-            } catch (IOException e) {
-                logger.error("Error in tunnel setup : " + e.getMessage());
+                result.add(sshClient);
             }
-            result.add(sshClient);
+            return result;
+        } catch (IOException e) {
+            // a jump host failed — release the hops already established before propagating the real cause
+            disconnectQuietly(result);
+            throw e;
         }
-        return result;
+    }
+
+    private void disconnectQuietly(List<SSHClient> clients) {
+        clients.reversed().forEach(t -> {
+            try {
+                t.disconnect();
+            } catch (IOException e) {
+                logger.error("Error disconnecting tunnel : " + e.getMessage());
+            }
+        });
+    }
+
+    private static void applyTimeouts(SSHClient client, Integer connectTimeoutMs) {
+        if (connectTimeoutMs != null) {
+            client.setConnectTimeout(connectTimeoutMs);
+            client.setTimeout(connectTimeoutMs);
+        }
     }
 
     private void authenticate(SSHClient client, Connection connection) throws IOException {

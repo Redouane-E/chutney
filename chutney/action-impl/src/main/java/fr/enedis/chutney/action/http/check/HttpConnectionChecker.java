@@ -11,6 +11,7 @@ import static fr.enedis.chutney.action.common.SecurityUtils.buildSslContext;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import fr.enedis.chutney.action.common.TargetProtocols;
+import fr.enedis.chutney.action.http.domain.HttpClientFactory;
 import fr.enedis.chutney.action.spi.TargetConnectionChecker;
 import fr.enedis.chutney.action.spi.injectable.Target;
 import java.util.Base64;
@@ -21,6 +22,7 @@ import javax.net.ssl.SSLContext;
 import org.apache.hc.client5.http.classic.methods.HttpHead;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
@@ -78,13 +80,16 @@ public class HttpConnectionChecker implements TargetConnectionChecker {
             .setSSLSocketFactory(new SSLConnectionSocketFactory(sslContext, NoopHostnameVerifier.INSTANCE))
             .setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(timeoutMs, TimeUnit.MILLISECONDS).build())
             .build();
-        return HttpClients.custom()
+        HttpClientBuilder builder = HttpClients.custom()
             .setConnectionManager(connectionManager)
             .setDefaultRequestConfig(RequestConfig.custom()
                 .setConnectTimeout(Timeout.ofMilliseconds(timeoutMs))
                 .setResponseTimeout(Timeout.ofMilliseconds(timeoutMs))
-                .build())
-            .build();
+                .build());
+        // Reach the target through the same proxy the http actions use (target `proxy` property or the
+        // JVM system proxy); probing directly would report a proxy-only target as unreachable.
+        HttpClientFactory.proxyRoutePlanner(target).ifPresent(builder::setRoutePlanner);
+        return builder.build();
     }
 
     private Optional<String> basicAuthorization(Target target) {
