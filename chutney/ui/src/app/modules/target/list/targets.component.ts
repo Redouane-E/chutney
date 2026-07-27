@@ -193,6 +193,11 @@ export class TargetsComponent implements OnInit, OnDestroy {
         );
     }
 
+    /** Test all only exists when the environment currently shown actually has targets to probe. */
+    canTestAll(): boolean {
+        return this.targetsNames.length > 0;
+    }
+
     isTestingAll(): boolean {
         return this.targetsNames.some(targetName => this.isTesting(targetName, this.activeEnvTab(targetName)));
     }
@@ -292,9 +297,16 @@ export class TargetsComponent implements OnInit, OnDestroy {
             next: envs => {
                 this.environments = envs;
                 this.targets = envs.flatMap(env => env.targets).sort(this.targetSortFunction());
-                // Honour a search typed while the list was still loading, rather than listing
-                // everything under a filter the user can see.
-                this.filter();
+                // Scope the page to a single environment from the start: the UI then only ever shows
+                // and acts on one selected environment. We take the first environment as-is — even if
+                // it has no targets, in which case the list is empty and there is simply nothing to
+                // test (Test / Test all are hidden); switching to an environment that has targets shows
+                // them and their controls. filter() also honours any search typed while still loading.
+                if (this.environments.length) {
+                    this.filter(this.environments[0]);
+                } else {
+                    this.filter();
+                }
             },
             error: error => this.errorMessage = error.error
         });

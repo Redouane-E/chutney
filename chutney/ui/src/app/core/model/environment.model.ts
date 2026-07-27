@@ -16,7 +16,7 @@ export class Environment {
     }
 
     static compareByName(a: Environment, b: Environment): number {
-        return a.name.toUpperCase() > b.name.toUpperCase() ? 1 : 0;
+        return a.name.toUpperCase().localeCompare(b.name.toUpperCase());
     }
 }
 

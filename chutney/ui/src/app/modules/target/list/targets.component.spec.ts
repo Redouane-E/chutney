@@ -150,4 +150,44 @@ describe('TargetsComponent', () => {
         expect(component.statusKind('a-target', 'DEFAULT')).toBe('ok');
         expect(component.statusKind('a-target', 'OTHER')).toBe('idle');
     });
+
+    it('should scope the page to the first environment on load, so "Test all" targets one env', () => {
+        // Given two environments with different targets
+        environmentService.listTargets.and.returnValue(of([
+            { name: 'DEFAULT', targets: [{ name: 't1', url: 'http://a', properties: [] }] },
+            { name: 'PROD', targets: [{ name: 't2', url: 'http://b', properties: [] }] }
+        ] as any));
+
+        component.ngOnInit();
+
+        // the first environment is selected, and only its targets are listed (not a mix of both)
+        expect(component.environmentFilter?.name).toBe('DEFAULT');
+        expect(component.targetsNames).toEqual(['t1']);
+        expect(component.activeEnvTab('t1')).toBe('DEFAULT');
+    });
+
+    it('should stay on the selected environment even when it has no targets, so nothing is testable', () => {
+        // the UI acts only on the environment in view: an empty selected env shows no targets and no
+        // "Test all", rather than silently jumping to a different env that happens to have some
+        environmentService.listTargets.and.returnValue(of([
+            { name: 'AAA_EMPTY', targets: [] },
+            { name: 'BBB', targets: [{ name: 't2', url: 'http://b', properties: [] }] }
+        ] as any));
+
+        component.ngOnInit();
+
+        expect(component.environmentFilter?.name).toBe('AAA_EMPTY');
+        expect(component.targetsNames).toEqual([]);
+        expect(component.canTestAll()).toBeFalse();
+    });
+
+    it('should offer Test all only for an environment that has targets', () => {
+        environmentService.listTargets.and.returnValue(of([
+            { name: 'WITH', targets: [{ name: 't1', url: 'http://a', properties: [] }] }
+        ] as any));
+
+        component.ngOnInit();
+
+        expect(component.canTestAll()).toBeTrue();
+    });
 });

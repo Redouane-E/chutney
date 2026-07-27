@@ -48,11 +48,13 @@
         data-bs-target=".collapse">
       </i>
     </button>
-    <button type="button" class="btn btn-sm btn-outline-primary ms-auto align-self-center text-nowrap"
-            (click)="testAll()" [disabled]="isTestingAll()"
-            title="{{ 'admin.targets.connection.testAllTooltip' | translate }}">
-      <i class="bi bi-arrow-clockwise me-1"></i>{{ 'admin.targets.connection.testAll' | translate }}
-    </button>
+    @if (canTestAll()) {
+      <button type="button" class="btn btn-sm btn-outline-primary ms-auto align-self-center text-nowrap"
+              (click)="testAll()" [disabled]="isTestingAll()"
+              title="{{ 'admin.targets.connection.testAllTooltip' | translate }}">
+        <i class="bi bi-arrow-clockwise me-1"></i>{{ 'admin.targets.connection.testAll' | translate }}
+      </button>
+    }
   </div>
   <table class="table table-striped table-hover">
     <thead>
