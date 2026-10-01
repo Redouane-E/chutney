@@ -36,7 +36,11 @@ public class SurefireScenarioExecutionReportBuilder {
 
     Testsuite create(ScenarioExecutionCampaign scenarioExecutionReport) {
         Testsuite testsuite = objectFactory.createTestsuite();
-        testsuite.setName(scenarioExecutionReport.scenarioId() + "_" + scenarioExecutionReport.scenarioName());
+        String name = scenarioExecutionReport.scenarioId() + "_" + scenarioExecutionReport.scenarioName();
+        if (scenarioExecutionReport.execution().dataset().isPresent()) {
+            name += "_" + scenarioExecutionReport.execution().dataset().get().name;
+        }
+        testsuite.setName(name);
         testsuite.setTime(toSurefireDuration(scenarioExecutionReport.execution().duration()));
 
         String rawReport = executionHistoryRepository.getExecution(scenarioExecutionReport.scenarioId(), scenarioExecutionReport.execution().executionId()).report();
@@ -83,10 +87,10 @@ public class SurefireScenarioExecutionReportBuilder {
                     failure.setMessage(error);
                     testcase.getFailure().add(failure);
                 });
-            } else if (ServerReportStatus.NOT_EXECUTED == stepExecutionReport.status) {
+            } else if (ServerReportStatus.NOT_EXECUTED == stepExecutionReport.status || ServerReportStatus.SKIPPED == stepExecutionReport.status) {
                 skippedCounter.incrementAndGet();
                 Testsuite.Testcase.Skipped skipped = new Testsuite.Testcase.Skipped();
-                skipped.setMessage("Not executed");
+                skipped.setMessage(ServerReportStatus.SKIPPED == stepExecutionReport.status ? "Skipped" : "Not executed");
                 testcase.setSkipped(objectFactory.createTestsuiteTestcaseSkipped(skipped));
             }
             if (!stepExecutionReport.information.isEmpty()) {

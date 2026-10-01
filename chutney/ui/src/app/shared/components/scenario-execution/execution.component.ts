@@ -84,6 +84,7 @@ export class ScenarioExecutionComponent implements OnInit, OnDestroy, AfterViewI
     collapseDataset = true;
 
     private scenarioExecutionAsyncSubscription: Subscription;
+    private leftPanelPositionSubscription: Subscription;
     private unsubscribeSub$: Subject<void> = new Subject();
 
     @ViewChild('leftPanel') leftPanel;
@@ -94,6 +95,8 @@ export class ScenarioExecutionComponent implements OnInit, OnDestroy, AfterViewI
     private stickyTopElement: HTMLElement;
     private stickyTopElementHeight: number = 0;
     private stickyTopElementResizeObserver: ResizeObserver;
+    private reportHeaderResizeObserver: ResizeObserver;
+    private initializedLeftPanel: HTMLElement;
 
     constructor(
         private scenarioExecutionService: ScenarioExecutionService,
@@ -115,20 +118,9 @@ export class ScenarioExecutionComponent implements OnInit, OnDestroy, AfterViewI
     }
 
     ngAfterViewInit(): void {
-        if(this.leftPanel) {
-            merge(
-                fromEvent(window, 'resize'),
-                fromEvent(findScrollContainer(this.leftPanel.nativeElement),'scroll')
-            ).pipe(
-                takeUntil(this.unsubscribeSub$),
-                throttleTime(150),
-                debounceTime(150)
-            ).subscribe(() => {
-                this.setLeftPanelStyle();
-            });
-        }
-
         this.setReportHeaderTop();
+        this.reportHeaderResizeObserver = new ResizeObserver(() => this.setLeftPanelStyle());
+        this.reportHeaderResizeObserver.observe(this.reportHeader.nativeElement);
 
         if (this.stickyTopElementSelector) {
             this.stickyTopElement = document.querySelector(this.stickyTopElementSelector) as HTMLElement;
@@ -154,11 +146,16 @@ export class ScenarioExecutionComponent implements OnInit, OnDestroy, AfterViewI
     }
 
     ngAfterViewChecked(): void {
-        this.setLeftPanelStyle();
+        const leftPanel = this.leftPanel?.nativeElement;
+        if (leftPanel && leftPanel !== this.initializedLeftPanel) {
+            this.initializeLeftPanel(leftPanel);
+        }
     }
 
     ngOnDestroy() {
         this.unsubscribeScenarioExecutionAsyncSubscription();
+        this.leftPanelPositionSubscription?.unsubscribe();
+        this.reportHeaderResizeObserver?.disconnect();
         if (this.stickyTopElementResizeObserver) this.stickyTopElementResizeObserver.unobserve(this.stickyTopElement);
         this.unsubscribeSub$.next();
         this.unsubscribeSub$.complete();
@@ -191,7 +188,10 @@ export class ScenarioExecutionComponent implements OnInit, OnDestroy, AfterViewI
     private afterReportUpdate() {
         this.hasContextVariables = this.scenarioExecutionReport.contextVariables && Object.getOwnPropertyNames(this.scenarioExecutionReport.contextVariables).length > 0;
         this.computeAllStepRowId();
-        this.selectFailedStep();
+        this.restoreSelectedStep();
+        if (this.selectedStep === undefined) {
+            this.selectFailedStep();
+        }
     }
 
     private selectFailedStep() {
@@ -199,8 +199,35 @@ export class ScenarioExecutionComponent implements OnInit, OnDestroy, AfterViewI
         if (failedStep?.length > 0) {
             timer(500)
                 .pipe(takeUntil(this.unsubscribeSub$))
-                .subscribe(() => this.selectStep(failedStep[0], true));
+                .subscribe(() => {
+                    if (this.selectedStep === undefined) {
+                        const currentFailedStep = this.getFailureSteps(this.scenarioExecutionReport)?.[0];
+                        if (currentFailedStep) {
+                            this.selectStep(currentFailedStep, true);
+                        }
+                    }
+                });
         }
+    }
+
+    private restoreSelectedStep() {
+        const selectedRowId = this.selectedStep?.['rowId'];
+        if (selectedRowId !== undefined) {
+            this.selectedStep = this.findStepByRowId(this.scenarioExecutionReport.report.steps, selectedRowId) ?? this.selectedStep;
+        }
+    }
+
+    private findStepByRowId(steps: StepExecutionReport[], rowId: string): StepExecutionReport | undefined {
+        for (const step of steps) {
+            if (step['rowId'] === rowId) {
+                return step;
+            }
+            const matchingSubStep = this.findStepByRowId(step.steps, rowId);
+            if (matchingSubStep) {
+                return matchingSubStep;
+            }
+        }
+        return undefined;
     }
 
     protected getDataset(execution: ScenarioExecutionReport) {
@@ -403,6 +430,20 @@ export class ScenarioExecutionComponent implements OnInit, OnDestroy, AfterViewI
     }
 
 ////////////////////////////////////////////////////// REPORT new view
+
+    private initializeLeftPanel(leftPanel: HTMLElement) {
+        this.initializedLeftPanel = leftPanel;
+        this.leftPanelPositionSubscription?.unsubscribe();
+        this.leftPanelPositionSubscription = merge(
+            fromEvent(window, 'resize'),
+            fromEvent(findScrollContainer(leftPanel), 'scroll')
+        ).pipe(
+            takeUntil(this.unsubscribeSub$),
+            throttleTime(150),
+            debounceTime(150)
+        ).subscribe(() => this.setLeftPanelStyle());
+        this.setLeftPanelStyle();
+    }
 
     private setLeftPanelStyle() {
         if(this.leftPanel) {

@@ -1,14 +1,11 @@
 #SPDX-FileCopyrightText: 2017-2026 Enedis
 #SPDX-License-Identifier: Apache-2.0
 
-FROM eclipse-temurin:21-jre
-
-VOLUME /.chutney
-EXPOSE 8443
+FROM eclipse-temurin:25-jre
 
 LABEL org.opencontainers.image.source=https://github.com/Enedis-OSS/chutney
 
 ARG JAR_PATH=server/target
-COPY $JAR_PATH/chutney-server-*-boot.jar app.jar
+COPY $JAR_PATH/chutney-server-*-boot.jar /app.jar
 
-CMD ["java", "-jar", "/app.jar", "--server.port=8443", "--chutney.workspace=/.chutney"]
+ENTRYPOINT ["java", "-jar", "/app.jar"]

@@ -12,7 +12,7 @@
 
   <groupId>fr.enedis.chutney</groupId>
   <artifactId>chutney-testing-parent</artifactId>
-  <version>4.3.1-SNAPSHOT</version>
+  <version>5.0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>chutney-testing</name>
@@ -82,8 +82,8 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <maven.compiler.source>21</maven.compiler.source>
-    <maven.compiler.target>21</maven.compiler.target>
+    <maven.compiler.source>25</maven.compiler.source>
+    <maven.compiler.target>25</maven.compiler.target>
 
     <buildMetadataRequired>false</buildMetadataRequired>
     <chutney.version>${project.version}</chutney.version>
@@ -149,7 +149,7 @@
       <plugins>
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.5.5</version>
+          <version>3.6.0</version>
           <executions>
             <execution>
               <id>default-test</id>
@@ -227,7 +227,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.5.0</version>
+          <version>3.5.1</version>
           <configuration>
             <archive>
               <manifest>
@@ -282,12 +282,12 @@
         <plugin>
           <groupId>org.jacoco</groupId>
           <artifactId>jacoco-maven-plugin</artifactId>
-          <version>0.8.14</version>
+          <version>0.8.15</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>3.6.3</version>
+          <version>3.6.4</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

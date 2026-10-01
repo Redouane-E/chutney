@@ -344,7 +344,9 @@ public class CampaignExecutionEngine {
     }
 
     private boolean isScenarioCompletelyExecuted(ServerReportStatus status) {
-        return ServerReportStatus.SUCCESS.equals(status) || ServerReportStatus.FAILURE.equals(status);
+        return ServerReportStatus.SUCCESS.equals(status)
+            || ServerReportStatus.FAILURE.equals(status)
+            || ServerReportStatus.SKIPPED.equals(status);
     }
 
     private ScenarioExecutionCampaign generateNotExecutedScenarioExecutionAndReport(Campaign campaign, TestCaseDataset testCaseDataset, CampaignExecution campaignExecution) {
@@ -380,6 +382,7 @@ public class CampaignExecutionEngine {
     private DataSet resolveScenarioDataset(Campaign.CampaignScenario campaignScenario, CampaignExecution campaignExecution) {
         return
             ofNullable(campaignScenario.datasetId())
+                .filter(datasetId -> !DataSet.CUSTOM_ID.equals(datasetId))
                 .map(datasetId -> DataSet.builder().withId(datasetId).withName("").build())
                 .or(() -> ofNullable(campaignExecution.dataset))
                 .map(ds -> {
