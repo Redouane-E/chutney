@@ -14,7 +14,7 @@
     <parent>
         <groupId>fr.enedis.chutney</groupId>
         <artifactId>chutney-parent</artifactId>
-        <version>5.0.1-SNAPSHOT</version>
+        <version>5.0.1</version>
     </parent>
 
     <name>ui</name>
@@ -32,7 +32,7 @@
 
     <properties>
         <failOnMissingWebXml>false</failOnMissingWebXml>
-        <node.version>v22.20.0</node.version>
+        <node.version>v22.23.4</node.version>
         <useExternalNpm>false</useExternalNpm>
     </properties>
 
